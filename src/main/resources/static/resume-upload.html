@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Upload & Skills Matching</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .progress {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: none;
+        }
+        .skills-list {
+            margin-top: 10px;
+        }
+        .skill-match {
+            color: green;
+        }
+        .skill-missing {
+            color: red;
+        }
+        .skill-additional {
+            color: blue;
+        }
+    </style>
+</head>
+<body>
+    <h1>Resume Upload & Skills Matching</h1>
+    
+    <form id="resumeForm">
+        <div class="form-group">
+            <label for="file">Upload Resume (PDF or Word):</label>
+            <input type="file" id="file" name="file" accept=".pdf,.doc,.docx" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="fullName">Full Name:</label>
+            <input type="text" id="fullName" name="fullName" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="phoneNumber">Phone Number:</label>
+            <input type="tel" id="phoneNumber" name="phoneNumber" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="jobId">Job ID to Match:</label>
+            <input type="number" id="jobId" name="jobId" required>
+        </div>
+        
+        <button type="submit">Upload and Match Skills</button>
+    </form>
+
+    <div id="progress" class="progress">
+        <h2>Skills Matching Results</h2>
+        <div id="matchingScore"></div>
+        
+        <h3>Matching Skills:</h3>
+        <div id="matchingSkills" class="skills-list skill-match"></div>
+        
+        <h3>Missing Skills:</h3>
+        <div id="missingSkills" class="skills-list skill-missing"></div>
+        
+        <h3>Additional Skills:</h3>
+        <div id="additionalSkills" class="skills-list skill-additional"></div>
+    </div>
+
+    <script>
+        document.getElementById('resumeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('file', document.getElementById('file').files[0]);
+            formData.append('fullName', document.getElementById('fullName').value);
+            formData.append('email', document.getElementById('email').value);
+            formData.append('phoneNumber', document.getElementById('phoneNumber').value);
+            
+            try {
+                // Upload resume
+                const uploadResponse = await fetch('/api/resumes', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!uploadResponse.ok) throw new Error('Resume upload failed');
+                
+                const resumeData = await uploadResponse.json();
+                
+                // Match with job
+                const jobId = document.getElementById('jobId').value;
+                const matchResponse = await fetch(`/api/resumes/${resumeData.id}/match/${jobId}`);
+                
+                if (!matchResponse.ok) throw new Error('Skills matching failed');
+                
+                const matchData = await matchResponse.json();
+                
+                // Display results
+                document.getElementById('progress').style.display = 'block';
+                document.getElementById('matchingScore').textContent = 
+                    `Overall Match: ${matchData.matchingScore}%`;
+                document.getElementById('matchingSkills').textContent = 
+                    matchData.matchingSkills.join(', ');
+                document.getElementById('missingSkills').textContent = 
+                    matchData.missingSkills.join(', ');
+                document.getElementById('additionalSkills').textContent = 
+                    matchData.additionalSkills.join(', ');
+                
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html> 
