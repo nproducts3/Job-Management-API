@@ -33,7 +33,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserDTO createUser(UserDTO userDTO) {
+        public UserDTO createUser(UserDTO userDTO) {
+        if (userDTO.getId() != null) {
+            throw new IllegalArgumentException("User ID must be null");
+        }
         validateUniqueFields(userDTO, null);
         User user = convertToEntity(userDTO);
         User savedUser = userRepository.save(user);
@@ -42,7 +45,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserDTO updateUser(Integer id, UserDTO userDTO) {
+    public UserDTO updateUser(String id, UserDTO userDTO) {
         User existingUser = userRepository.findById(id)
             .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + id));
         
@@ -69,7 +72,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserDTO getUserById(Integer id) {
+    public UserDTO getUserById(String id) {
         User user = userRepository.findById(id)
             .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + id));
         return convertToDTO(user);
@@ -84,7 +87,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public void deleteUser(Integer id) {
+    public void deleteUser(String id) {
         if (!userRepository.existsById(id)) {
             throw new EntityNotFoundException("User not found with id: " + id);
         }
@@ -93,14 +96,14 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserDTO toggleUserStatus(Integer id) {
+    public UserDTO toggleUserStatus(String id) {
         User user = userRepository.findById(id)
             .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + id));
         user.setDisabled(!user.getDisabled());
         return convertToDTO(userRepository.save(user));
     }
 
-    private void validateUniqueFields(UserDTO userDTO, Integer excludeId) {
+    private void validateUniqueFields(UserDTO userDTO, String excludeId) {
         // Check username uniqueness
         if (userRepository.findByUsername(userDTO.getUsername())
                 .filter(user -> !user.getId().equals(excludeId))
@@ -120,12 +123,12 @@ public class UserServiceImpl implements UserService {
         User user = new User();
         BeanUtils.copyProperties(userDTO, user);
 
-        // // Set role
-        // if (userDTO.getRoleId() != null) {
-        //     Role role = roleRepository.findById(userDTO.getRoleId())
-        //         .orElseThrow(() -> new EntityNotFoundException("Role not found"));
-        //     user.setRole(role);
-        // }
+        // Set role
+        if (userDTO.getRoleId() != null) {
+            Role role = roleRepository.findById(userDTO.getRoleId())
+                .orElseThrow(() -> new EntityNotFoundException("Role not found"));
+            user.setRole(role);
+        }
 
         // Set organization if provided
         if (userDTO.getOrganizationId() != null) {
@@ -141,9 +144,9 @@ public class UserServiceImpl implements UserService {
         UserDTO userDTO = new UserDTO();
         BeanUtils.copyProperties(user, userDTO);
         
-        // if (user.getRole() != null) {
-        //     userDTO.setRoleId(user.getRole().getId());
-        // }
+        if (user.getRole() != null) {
+            userDTO.setRoleId(user.getRole().getId());
+        }
         
         if (user.getOrganization() != null) {
             userDTO.setOrganizationId(user.getOrganization().getId());

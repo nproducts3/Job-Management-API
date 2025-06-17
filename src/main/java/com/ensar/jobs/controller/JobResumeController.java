@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
+@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/job-resumes")
 @RequiredArgsConstructor
@@ -42,7 +43,7 @@ public class JobResumeController {
         List<JobResumeDTO> resumes = jobResumeService.getResumesByJobId(jobId);
         return ResponseEntity.ok(resumes);
     }
-
+       
     @DeleteMapping("/job/{jobId}")
     public ResponseEntity<Void> deleteResume(@PathVariable String jobId) {
         jobResumeService.deleteResumeForJob(jobId);

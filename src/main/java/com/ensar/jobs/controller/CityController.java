@@ -19,7 +19,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/cities")
 @Tag(name = "City Management", description = "APIs for managing cities")
-@CrossOrigin(origins = "*", maxAge = 3600)
+@CrossOrigin(origins = "*")
 public class CityController {
 
     private final CityService cityService;

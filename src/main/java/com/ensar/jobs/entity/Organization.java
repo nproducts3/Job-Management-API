@@ -6,17 +6,21 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.GenericGenerator;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "organizations")
+@Table(name = "organization")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class Organization {
     
     @Id
+    @GeneratedValue(generator = "uuid2")
+    @GenericGenerator(name = "uuid2", strategy = "org.hibernate.id.UUIDGenerator")
+    @Column(columnDefinition = "CHAR(36)")
     private String id;
 
     @Column(nullable = false, length = 200)
@@ -41,4 +45,8 @@ public class Organization {
     @UpdateTimestamp
     @Column(name = "last_updated_date_time")
     private LocalDateTime lastUpdatedDateTime;
+
+   
 } 
+
+ 

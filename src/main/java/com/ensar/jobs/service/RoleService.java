@@ -50,7 +50,7 @@ public class RoleService {
     }
 
     public void deleteRole(String id) {
-        roleRepository.deleteById(id);
+            roleRepository.deleteById(id);
     }
 
     private RoleDTO toDTO(Role role) {

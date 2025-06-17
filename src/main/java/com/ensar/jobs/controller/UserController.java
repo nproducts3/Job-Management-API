@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/users")
 @Tag(name = "User Management", description = "APIs for managing users")
@@ -30,13 +31,13 @@ public class UserController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Update a user", description = "Updates an existing user's information")
-    public ResponseEntity<UserDTO> updateUser(@PathVariable Integer id, @Valid @RequestBody UserDTO userDTO) {
+    public ResponseEntity<UserDTO> updateUser(@PathVariable String id, @Valid @RequestBody UserDTO userDTO) {
         return ResponseEntity.ok(userService.updateUser(id, userDTO));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get user by ID", description = "Retrieves a user's information by their ID")
-    public ResponseEntity<UserDTO> getUserById(@PathVariable Integer id) {
+    public ResponseEntity<UserDTO> getUserById(@PathVariable String id) {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
@@ -48,14 +49,14 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a user", description = "Deletes a user by their ID")
-    public ResponseEntity<Void> deleteUser(@PathVariable Integer id) {
+    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/toggle-status")
     @Operation(summary = "Toggle user status", description = "Toggles a user's disabled status")
-    public ResponseEntity<UserDTO> toggleUserStatus(@PathVariable Integer id) {
+    public ResponseEntity<UserDTO> toggleUserStatus(@PathVariable String id) {
         return ResponseEntity.ok(userService.toggleUserStatus(id));
     }
 } 
