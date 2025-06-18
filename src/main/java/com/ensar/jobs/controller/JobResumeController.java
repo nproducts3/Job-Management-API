@@ -23,9 +23,9 @@ public class JobResumeController {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     );
 
-    @PostMapping(value = "/upload/{jobId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/upload/{googleJobId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<JobResumeDTO> uploadResume(
-            @PathVariable String jobId,
+            @PathVariable String googleJobId,
             @RequestParam("file") MultipartFile file) throws IOException {
         
         // Validate file type
@@ -34,19 +34,19 @@ public class JobResumeController {
             return ResponseEntity.badRequest().build();
         }
 
-        JobResumeDTO result = jobResumeService.uploadAndProcessResume(file, jobId);
+        JobResumeDTO result = jobResumeService.uploadAndProcessResume(file, googleJobId);
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/job/{jobId}")
-    public ResponseEntity<List<JobResumeDTO>> getResumesByJobId(@PathVariable String jobId) {
-        List<JobResumeDTO> resumes = jobResumeService.getResumesByJobId(jobId);
+    @GetMapping("/job/{googleJobId}")
+    public ResponseEntity<List<JobResumeDTO>> getResumesByJobId(@PathVariable String googleJobId) {
+        List<JobResumeDTO> resumes = jobResumeService.getResumesByJobId(googleJobId);
         return ResponseEntity.ok(resumes);
     }
        
-    @DeleteMapping("/job/{jobId}")
-    public ResponseEntity<Void> deleteResume(@PathVariable String jobId) {
-        jobResumeService.deleteResumeForJob(jobId);
+    @DeleteMapping("/job/{googleJobId}")
+    public ResponseEntity<Void> deleteResume(@PathVariable String googleJobId) {
+        jobResumeService.deleteResumeForJob(googleJobId);
         return ResponseEntity.ok().build();
     }
 } 

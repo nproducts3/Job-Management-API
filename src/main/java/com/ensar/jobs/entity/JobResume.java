@@ -16,28 +16,28 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class JobResume {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    @Column(length = 36)
+    private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "job_id", nullable = false)
-    private Job job;
+    @Column(name = "googlejob_id", length = 36)
+    private String googlejobId;
 
-    @Column(name = "resume_file", nullable = false)
+    @Column(name = "resume_file", length = 255)
     private String resumeFile;
 
     @Column(name = "resume_text", columnDefinition = "TEXT")
     private String resumeText;
 
     @Column(name = "match_percentage", precision = 5, scale = 2)
-    @Builder.Default
-    private BigDecimal matchPercentage = BigDecimal.ZERO;
+    private BigDecimal matchPercentage;
 
     @Column(name = "uploaded_at")
     private LocalDateTime uploadedAt;
 
     @PrePersist
     protected void onCreate() {
-        uploadedAt = LocalDateTime.now();
+        if (uploadedAt == null) {
+            uploadedAt = LocalDateTime.now();
+        }
     }
 } 

@@ -13,11 +13,9 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class JobResumeDTO {
-    private Integer id;
-    
-    @NotNull(message = "Job ID is required")
-    private String jobId;
-    
+    private String id;
+    @NotNull(message = "Google Job ID is required")
+    private String googleJobId;
     private String resumeFile;
     private String resumeText;
     
@@ -29,7 +27,7 @@ public class JobResumeDTO {
     
     // Additional fields for response
     private String jobTitle;
-    private String company;
+    private String companyName;
     private String matchedSkills;
     private String missingSkills;
 } 

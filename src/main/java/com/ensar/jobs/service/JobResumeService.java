@@ -1,9 +1,9 @@
 package com.ensar.jobs.service;
 
 import com.ensar.jobs.dto.JobResumeDTO;
-import com.ensar.jobs.entity.Job;
+import com.ensar.jobs.entity.GoogleJob;
 import com.ensar.jobs.entity.JobResume;
-import com.ensar.jobs.repository.JobRepository;
+import com.ensar.jobs.repository.GoogleJobRepository;
 import com.ensar.jobs.repository.JobResumeRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -24,6 +24,7 @@ import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -33,7 +34,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class JobResumeService {
-    private final JobRepository jobRepository;
+    private final GoogleJobRepository googleJobRepository;
     private final JobResumeRepository jobResumeRepository;
     private final ObjectMapper objectMapper;
     private final String UPLOAD_DIR = "uploads/resumes";
@@ -137,17 +138,15 @@ public class JobResumeService {
         ));
     }
 
-    public JobResumeDTO uploadAndProcessResume(MultipartFile file, String jobId) throws IOException {
+    public JobResumeDTO uploadAndProcessResume(MultipartFile file, String googleJobId) throws IOException {
         try {
-            Job job = jobRepository.findById(jobId)
-                    .orElseThrow(() -> new EntityNotFoundException("Job not found with id: " + jobId));
+            if (googleJobId == null || googleJobId.isBlank()) {
+                throw new IllegalArgumentException("Invalid Google Job ID (googleJobId) format.");
+            }
 
-            log.info("Processing resume upload for job: {} ({})", job.getTitle(), jobId);
-
-            // Delete existing resume if any
-            List<JobResume> existingResumes = jobResumeRepository.findByJobId(jobId);
+            // Delete existing resume(s) for this job
+            List<JobResume> existingResumes = jobResumeRepository.findByGooglejobId(googleJobId);
             for (JobResume existingResume : existingResumes) {
-                // Delete the file from storage
                 Path existingFilePath = Paths.get(UPLOAD_DIR, existingResume.getResumeFile());
                 try {
                     Files.deleteIfExists(existingFilePath);
@@ -155,70 +154,60 @@ public class JobResumeService {
                 } catch (IOException e) {
                     log.warn("Failed to delete existing resume file: {}", existingResume.getResumeFile(), e);
                 }
-                
-                // Delete from database
                 jobResumeRepository.delete(existingResume);
                 log.info("Deleted existing resume record from database");
             }
 
-            // Create upload directory if it doesn't exist
             Path uploadPath = Paths.get(UPLOAD_DIR);
             Files.createDirectories(uploadPath);
 
-            // Generate unique filename
             String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
             Path filePath = uploadPath.resolve(filename);
-            
-            // Save the file
             Files.copy(file.getInputStream(), filePath);
             log.info("File saved successfully: {}", filename);
 
-            // Extract text based on file type
+            // Extract text from the resume file
             String resumeText = extractTextFromFile(file, filePath.toFile());
             log.info("Successfully extracted text from resume, length: {} characters", resumeText.length());
 
-            // Process job requirements and extract required skills
-            Set<String> jobSkills = extractJobSkills(job);
-            log.info("Job required skills: {}", jobSkills);
+            // Fetch GoogleJob for job title and company name
+            GoogleJob googleJob = googleJobRepository.findById(googleJobId)
+                .orElse(null);
+            String jobTitle = googleJob != null ? googleJob.getTitle() : null;
+            String companyName = googleJob != null ? googleJob.getCompanyName() : null;
 
-            // Extract skills from resume with categories
+            // Extract job skills from GoogleJob if available
+            Set<String> jobSkills = googleJob != null ? extractJobSkills(googleJob) : new HashSet<>();
             Map<String, Set<String>> resumeSkillsByCategory = extractSkillsByCategory(resumeText);
-            Set<String> resumeSkills = resumeSkillsByCategory.values().stream()
-                    .flatMap(Set::stream)
-                    .collect(Collectors.toSet());
-            log.info("Skills found in resume: {}", resumeSkills);
-            
-            // Calculate matching percentage and identify matched/missing skills
+            Set<String> resumeSkills = resumeSkillsByCategory.values().stream().flatMap(Set::stream).collect(Collectors.toSet());
             SkillMatchResult matchResult = calculateDetailedSkillMatch(jobSkills, resumeSkills, resumeSkillsByCategory);
-            log.info("Match result - Overall score: {}%, Category scores: {}", 
-                    matchResult.getMatchPercentage(),
-                    matchResult.getCategoryScores());
 
-            // Create and save JobResume entity
             JobResume jobResume = JobResume.builder()
-                    .job(job)
+                    .id(UUID.randomUUID().toString())
+                    .googlejobId(googleJobId)
                     .resumeFile(filename)
                     .resumeText(resumeText)
                     .matchPercentage(matchResult.getMatchPercentage())
+                    .uploadedAt(LocalDateTime.now())
                     .build();
 
             jobResume = jobResumeRepository.save(jobResume);
             log.info("Successfully saved job resume with ID: {}", jobResume.getId());
 
-            // Create response DTO with detailed matching information
             return JobResumeDTO.builder()
                     .id(jobResume.getId())
-                    .jobId(job.getId())
+                    .googleJobId(googleJobId)
                     .resumeFile(filename)
+                    .resumeText(resumeText)
                     .matchPercentage(matchResult.getMatchPercentage())
                     .uploadedAt(jobResume.getUploadedAt())
-                    .jobTitle(job.getTitle())
-                    .company(job.getCompany())
-                    .matchedSkills(String.join(", ", matchResult.getMatchedSkills()))
-                    .missingSkills(String.join(", ", matchResult.getMissingSkills()))
+                    .jobTitle(jobTitle)
+                    .companyName(companyName)
+                    .matchedSkills(matchResult.getMatchedSkills() != null ? String.join(", ", matchResult.getMatchedSkills()) : null)
+                    .missingSkills(matchResult.getMissingSkills() != null ? String.join(", ", matchResult.getMissingSkills()) : null)
                     .build();
         } catch (Exception e) {
-            log.error("Error processing resume: {}", e.getMessage(), e);
+            log.error("Error processing resume upload", e);
             throw e;
         }
     }
@@ -255,27 +244,27 @@ public class JobResumeService {
         return extractedText;
     }
 
-    private Set<String> extractJobSkills(Job job) {
+    private Set<String> extractJobSkills(GoogleJob googleJob) {
         Set<String> skills = new HashSet<>();
-        
-        // Extract skills from JSON if available
+        // Extract skills from responsibilities, benefits, qualifications, description
         try {
-            if (job.getSkills() != null && !job.getSkills().trim().isEmpty()) {
-                List<String> jsonSkills = objectMapper.readValue(job.getSkills(), new TypeReference<List<String>>() {});
+            if (googleJob.getResponsibilities() != null && !googleJob.getResponsibilities().trim().isEmpty()) {
+                List<String> jsonSkills = objectMapper.readValue(googleJob.getResponsibilities(), new TypeReference<List<String>>() {});
                 skills.addAll(jsonSkills.stream().map(String::toLowerCase).collect(Collectors.toSet()));
             }
-        } catch (JsonProcessingException e) {
-            log.warn("Failed to parse skills JSON, falling back to text analysis", e);
+            if (googleJob.getBenefits() != null && !googleJob.getBenefits().trim().isEmpty()) {
+                List<String> jsonSkills = objectMapper.readValue(googleJob.getBenefits(), new TypeReference<List<String>>() {});
+                skills.addAll(jsonSkills.stream().map(String::toLowerCase).collect(Collectors.toSet()));
+            }
+            if (googleJob.getQualifications() != null) {
+                skills.addAll(extractSkillsFromText(googleJob.getQualifications()));
+            }
+            if (googleJob.getDescription() != null) {
+                skills.addAll(extractSkillsFromText(googleJob.getDescription()));
+            }
+        } catch (Exception e) {
+            log.warn("Error extracting skills from GoogleJob fields", e);
         }
-
-        // Extract skills from requirements and description using NLP
-        if (job.getRequirements() != null) {
-            skills.addAll(extractSkillsFromText(job.getRequirements()));
-        }
-        if (job.getDescription() != null) {
-            skills.addAll(extractSkillsFromText(job.getDescription()));
-        }
-
         return skills;
     }
 
@@ -547,40 +536,37 @@ public class JobResumeService {
         }
     }
 
-    public List<JobResumeDTO> getResumesByJobId(String jobId) {
-        List<JobResume> resumes = jobResumeRepository.findByJobId(jobId);
+    public List<JobResumeDTO> getResumesByJobId(String googleJobId) {
+        List<JobResume> resumes = jobResumeRepository.findByGooglejobId(googleJobId);
+        GoogleJob googleJob = googleJobRepository.findById(googleJobId).orElse(null);
+        String jobTitle = googleJob != null ? googleJob.getTitle() : null;
+        String companyName = googleJob != null ? googleJob.getCompanyName() : null;
+        Set<String> jobSkills = googleJob != null ? extractJobSkills(googleJob) : new HashSet<>();
         return resumes.stream().map(resume -> {
             JobResumeDTO dto = new JobResumeDTO();
             dto.setId(resume.getId());
-            dto.setJobId(resume.getJob().getId());
+            dto.setGoogleJobId(googleJobId);
             dto.setResumeFile(resume.getResumeFile());
+            dto.setResumeText(resume.getResumeText());
             dto.setMatchPercentage(resume.getMatchPercentage());
             dto.setUploadedAt(resume.getUploadedAt());
-            dto.setJobTitle(resume.getJob().getTitle());
-            dto.setCompany(resume.getJob().getCompany());
-            
-            // Extract matched and missing skills from the resume text
-            Set<String> jobSkills = extractJobSkills(resume.getJob());
+            dto.setJobTitle(jobTitle);
+            dto.setCompanyName(companyName);
+            // Skill matching for each resume
             Set<String> resumeSkills = extractSkillsFromText(resume.getResumeText());
-            
-            // Calculate matched and missing skills
             Set<String> matchedSkills = new HashSet<>(jobSkills);
             matchedSkills.retainAll(resumeSkills);
-            
             Set<String> missingSkills = new HashSet<>(jobSkills);
             missingSkills.removeAll(matchedSkills);
-            
-            dto.setMatchedSkills(String.join(", ", matchedSkills));
-            dto.setMissingSkills(String.join(", ", missingSkills));
-            
+            dto.setMatchedSkills(matchedSkills.isEmpty() ? null : String.join(", ", matchedSkills));
+            dto.setMissingSkills(missingSkills.isEmpty() ? null : String.join(", ", missingSkills));
             return dto;
         }).collect(Collectors.toList());
     }
 
-    public void deleteResumeForJob(String jobId) {
-        List<JobResume> existingResumes = jobResumeRepository.findByJobId(jobId);
+    public void deleteResumeForJob(String googleJobId) {
+        List<JobResume> existingResumes = jobResumeRepository.findByGooglejobId(googleJobId);
         for (JobResume existingResume : existingResumes) {
-            // Delete the file from storage
             Path existingFilePath = Paths.get(UPLOAD_DIR, existingResume.getResumeFile());
             try {
                 Files.deleteIfExists(existingFilePath);
@@ -588,10 +574,8 @@ public class JobResumeService {
             } catch (IOException e) {
                 log.warn("Failed to delete resume file: {}", existingResume.getResumeFile(), e);
             }
-            
-            // Delete from database
             jobResumeRepository.delete(existingResume);
-            log.info("Deleted resume record from database for job: {}", jobId);
+            log.info("Deleted resume record from database for job: {}", googleJobId);
         }
     }
 }
