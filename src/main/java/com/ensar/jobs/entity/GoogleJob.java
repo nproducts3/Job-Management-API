@@ -13,7 +13,7 @@ import java.sql.Timestamp;
 @AllArgsConstructor
 public class GoogleJob {
     @Id
-    @Column(length = 36)
+    @Column(length = 255)
     private String id;
 
     @Column(name = "job_id", length = 36, unique = true, nullable = false)

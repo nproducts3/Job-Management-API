@@ -19,7 +19,7 @@ public class JobResume {
     @Column(length = 36)
     private String id;
 
-    @Column(name = "googlejob_id", length = 36)
+    @Column(name = "googlejob_id", length = 255)
     private String googlejobId;
 
     @Column(name = "resume_file", length = 255)
