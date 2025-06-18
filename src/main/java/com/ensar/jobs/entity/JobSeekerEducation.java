@@ -16,5 +16,6 @@ public class JobSeekerEducation {
 
     private String degree;
     private String university;
+    @Column(name = "graduation_year")
     private Integer graduationYear;
 } 

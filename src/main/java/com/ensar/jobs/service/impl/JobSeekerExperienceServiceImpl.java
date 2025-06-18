@@ -6,73 +6,106 @@ import com.ensar.jobs.entity.JobSeekerExperience;
 import com.ensar.jobs.repository.JobSeekerExperienceRepository;
 import com.ensar.jobs.repository.JobSeekerRepository;
 import com.ensar.jobs.service.JobSeekerExperienceService;
-import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class JobSeekerExperienceServiceImpl implements JobSeekerExperienceService {
-    @Autowired
-    private JobSeekerExperienceRepository experienceRepository;
-    @Autowired
-    private JobSeekerRepository jobSeekerRepository;
-    @Autowired
-    private ModelMapper modelMapper;
 
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
+    private final JobSeekerExperienceRepository experienceRepository;
+    private final JobSeekerRepository jobSeekerRepository;
 
-    @Override
-    public JobSeekerExperienceDTO createJobSeekerExperience(JobSeekerExperienceDTO dto) {
-        JobSeekerExperience entity = modelMapper.map(dto, JobSeekerExperience.class);
-        if (dto.getJobSeekerId() != null) {
-            JobSeeker jobSeeker = jobSeekerRepository.findById(dto.getJobSeekerId()).orElseThrow();
-            entity.setJobSeeker(jobSeeker);
+    private JobSeekerExperienceDTO convertToDTO(JobSeekerExperience experience) {
+        if (experience == null) {
+            return null;
         }
+        JobSeekerExperienceDTO dto = new JobSeekerExperienceDTO();
+        dto.setId(experience.getId());
+        dto.setJobTitle(experience.getJobTitle());
+        dto.setCompanyName(experience.getCompanyName());
+        dto.setStartDate(experience.getStartDate() != null ? experience.getStartDate().toString() : null);
+        dto.setEndDate(experience.getEndDate() != null ? experience.getEndDate().toString() : null);
+        dto.setResponsibilities(experience.getResponsibilities());
+        if (experience.getJobSeeker() != null) {
+            dto.setJobSeekerId(experience.getJobSeeker().getId());
+        }
+        return dto;
+    }
+
+    private JobSeekerExperience convertToEntity(JobSeekerExperienceDTO dto) {
+        if (dto == null) {
+            return null;
+        }
+        JobSeekerExperience experience = new JobSeekerExperience();
+        experience.setId(dto.getId());
+        experience.setJobTitle(dto.getJobTitle());
+        experience.setCompanyName(dto.getCompanyName());
+        experience.setResponsibilities(dto.getResponsibilities());
         if (dto.getStartDate() != null) {
-            entity.setStartDate(LocalDate.parse(dto.getStartDate(), DATE_FORMATTER));
+            experience.setStartDate(java.time.LocalDate.parse(dto.getStartDate()));
         }
         if (dto.getEndDate() != null) {
-            entity.setEndDate(LocalDate.parse(dto.getEndDate(), DATE_FORMATTER));
+            experience.setEndDate(java.time.LocalDate.parse(dto.getEndDate()));
         }
-        return modelMapper.map(experienceRepository.save(entity), JobSeekerExperienceDTO.class);
-    }
-
-    @Override
-    public JobSeekerExperienceDTO updateJobSeekerExperience(String id, JobSeekerExperienceDTO dto) {
-        JobSeekerExperience entity = experienceRepository.findById(id).orElseThrow();
-        modelMapper.map(dto, entity);
         if (dto.getJobSeekerId() != null) {
-            JobSeeker jobSeeker = jobSeekerRepository.findById(dto.getJobSeekerId()).orElseThrow();
-            entity.setJobSeeker(jobSeeker);
+            JobSeeker jobSeeker = jobSeekerRepository.findById(dto.getJobSeekerId())
+                .orElseThrow(() -> new RuntimeException("Job seeker not found"));
+            experience.setJobSeeker(jobSeeker);
         }
-        if (dto.getStartDate() != null) {
-            entity.setStartDate(LocalDate.parse(dto.getStartDate(), DATE_FORMATTER));
-        }
-        if (dto.getEndDate() != null) {
-            entity.setEndDate(LocalDate.parse(dto.getEndDate(), DATE_FORMATTER));
-        }
-        return modelMapper.map(experienceRepository.save(entity), JobSeekerExperienceDTO.class);
+        return experience;
     }
 
     @Override
-    public JobSeekerExperienceDTO getJobSeekerExperienceById(String id) {
-        return experienceRepository.findById(id)
-            .map(entity -> modelMapper.map(entity, JobSeekerExperienceDTO.class))
-            .orElse(null);
-    }
-
-    @Override
+    @Transactional
     public List<JobSeekerExperienceDTO> getAllJobSeekerExperiences() {
         return experienceRepository.findAll().stream()
-            .map(entity -> modelMapper.map(entity, JobSeekerExperienceDTO.class))
+            .map(this::convertToDTO)
             .collect(Collectors.toList());
     }
 
     @Override
+    @Transactional
+    public JobSeekerExperienceDTO getJobSeekerExperienceById(String id) {
+        JobSeekerExperience experience = experienceRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Job seeker experience not found"));
+        return convertToDTO(experience);
+    }
+
+    @Override
+    @Transactional
+    public JobSeekerExperienceDTO createJobSeekerExperience(JobSeekerExperienceDTO dto) {
+        JobSeekerExperience entity = convertToEntity(dto);
+        return convertToDTO(experienceRepository.save(entity));
+    }
+
+    @Override
+    @Transactional
+    public JobSeekerExperienceDTO updateJobSeekerExperience(String id, JobSeekerExperienceDTO dto) {
+        JobSeekerExperience existingExperience = experienceRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Job seeker experience not found"));
+        existingExperience.setJobTitle(dto.getJobTitle());
+        existingExperience.setCompanyName(dto.getCompanyName());
+        existingExperience.setResponsibilities(dto.getResponsibilities());
+        if (dto.getStartDate() != null) {
+            existingExperience.setStartDate(java.time.LocalDate.parse(dto.getStartDate()));
+        }
+        if (dto.getEndDate() != null) {
+            existingExperience.setEndDate(java.time.LocalDate.parse(dto.getEndDate()));
+        }
+        if (dto.getJobSeekerId() != null) {
+            JobSeeker jobSeeker = jobSeekerRepository.findById(dto.getJobSeekerId())
+                .orElseThrow(() -> new RuntimeException("Job seeker not found"));
+            existingExperience.setJobSeeker(jobSeeker);
+        }
+        return convertToDTO(experienceRepository.save(existingExperience));
+    }
+
+    @Override
+    @Transactional
     public void deleteJobSeekerExperience(String id) {
         experienceRepository.deleteById(id);
     }

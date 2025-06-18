@@ -7,6 +7,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.io.IOException;
 import java.util.List;
@@ -24,6 +25,7 @@ public class JobResumeController {
     );
 
     @PostMapping(value = "/upload/{googleJobId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_EMPLOYEE')")
     public ResponseEntity<JobResumeDTO> uploadResume(
             @PathVariable String googleJobId,
             @RequestParam("file") MultipartFile file) throws IOException {
@@ -45,6 +47,7 @@ public class JobResumeController {
     }
        
     @DeleteMapping("/job/{googleJobId}")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_EMPLOYEE')")
     public ResponseEntity<Void> deleteResume(@PathVariable String googleJobId) {
         jobResumeService.deleteResumeForJob(googleJobId);
         return ResponseEntity.ok().build();

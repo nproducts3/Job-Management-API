@@ -6,57 +6,92 @@ import com.ensar.jobs.entity.JobSeekerEducation;
 import com.ensar.jobs.repository.JobSeekerEducationRepository;
 import com.ensar.jobs.repository.JobSeekerRepository;
 import com.ensar.jobs.service.JobSeekerEducationService;
-import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class JobSeekerEducationServiceImpl implements JobSeekerEducationService {
-    @Autowired
-    private JobSeekerEducationRepository educationRepository;
-    @Autowired
-    private JobSeekerRepository jobSeekerRepository;
-    @Autowired
-    private ModelMapper modelMapper;
 
-    @Override
-    public JobSeekerEducationDTO createJobSeekerEducation(JobSeekerEducationDTO dto) {
-        JobSeekerEducation entity = modelMapper.map(dto, JobSeekerEducation.class);
-        if (dto.getJobSeekerId() != null) {
-            JobSeeker jobSeeker = jobSeekerRepository.findById(dto.getJobSeekerId()).orElseThrow();
-            entity.setJobSeeker(jobSeeker);
+    private final JobSeekerEducationRepository educationRepository;
+    private final JobSeekerRepository jobSeekerRepository;
+
+    private JobSeekerEducationDTO convertToDTO(JobSeekerEducation education) {
+        if (education == null) {
+            return null;
         }
-        return modelMapper.map(educationRepository.save(entity), JobSeekerEducationDTO.class);
-    }
-
-    @Override
-    public JobSeekerEducationDTO updateJobSeekerEducation(String id, JobSeekerEducationDTO dto) {
-        JobSeekerEducation entity = educationRepository.findById(id).orElseThrow();
-        modelMapper.map(dto, entity);
-        if (dto.getJobSeekerId() != null) {
-            JobSeeker jobSeeker = jobSeekerRepository.findById(dto.getJobSeekerId()).orElseThrow();
-            entity.setJobSeeker(jobSeeker);
+        JobSeekerEducationDTO dto = new JobSeekerEducationDTO();
+        dto.setId(education.getId());
+        dto.setDegree(education.getDegree());
+        dto.setUniversity(education.getUniversity());
+        dto.setGraduationYear(education.getGraduationYear());
+        if (education.getJobSeeker() != null) {
+            dto.setJobSeekerId(education.getJobSeeker().getId());
         }
-        return modelMapper.map(educationRepository.save(entity), JobSeekerEducationDTO.class);
+        return dto;
+    }
+
+    private JobSeekerEducation convertToEntity(JobSeekerEducationDTO dto) {
+        if (dto == null) {
+            return null;
+        }
+        JobSeekerEducation education = new JobSeekerEducation();
+        education.setId(dto.getId());
+        education.setDegree(dto.getDegree());
+        education.setUniversity(dto.getUniversity());
+        education.setGraduationYear(dto.getGraduationYear());
+        if (dto.getJobSeekerId() != null) {
+            JobSeeker jobSeeker = jobSeekerRepository.findById(dto.getJobSeekerId())
+                .orElseThrow(() -> new RuntimeException("Job seeker not found"));
+            education.setJobSeeker(jobSeeker);
+        }
+        return education;
     }
 
     @Override
-    public JobSeekerEducationDTO getJobSeekerEducationById(String id) {
-        return educationRepository.findById(id)
-            .map(entity -> modelMapper.map(entity, JobSeekerEducationDTO.class))
-            .orElse(null);
-    }
-
-    @Override
+    @Transactional
     public List<JobSeekerEducationDTO> getAllJobSeekerEducations() {
         return educationRepository.findAll().stream()
-            .map(entity -> modelMapper.map(entity, JobSeekerEducationDTO.class))
+            .map(this::convertToDTO)
             .collect(Collectors.toList());
     }
 
     @Override
+    @Transactional
+    public JobSeekerEducationDTO getJobSeekerEducationById(String id) {
+        JobSeekerEducation education = educationRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Job seeker education not found"));
+        return convertToDTO(education);
+    }
+
+    @Override
+    @Transactional
+    public JobSeekerEducationDTO createJobSeekerEducation(JobSeekerEducationDTO dto) {
+        JobSeekerEducation entity = convertToEntity(dto);
+        return convertToDTO(educationRepository.save(entity));
+    }
+
+    @Override
+    @Transactional
+    public JobSeekerEducationDTO updateJobSeekerEducation(String id, JobSeekerEducationDTO dto) {
+        JobSeekerEducation existingEducation = educationRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Job seeker education not found"));
+        existingEducation.setDegree(dto.getDegree());
+        existingEducation.setUniversity(dto.getUniversity());
+        existingEducation.setGraduationYear(dto.getGraduationYear());
+        if (dto.getJobSeekerId() != null) {
+            JobSeeker jobSeeker = jobSeekerRepository.findById(dto.getJobSeekerId())
+                .orElseThrow(() -> new RuntimeException("Job seeker not found"));
+            existingEducation.setJobSeeker(jobSeeker);
+        }
+        return convertToDTO(educationRepository.save(existingEducation));
+    }
+
+    @Override
+    @Transactional
     public void deleteJobSeekerEducation(String id) {
         educationRepository.deleteById(id);
     }

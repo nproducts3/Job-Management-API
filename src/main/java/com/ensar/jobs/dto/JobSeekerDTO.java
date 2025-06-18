@@ -1,7 +1,7 @@
 package com.ensar.jobs.dto;
 
 import lombok.Data;
-import java.util.List;
+
 
 @Data
 public class JobSeekerDTO {
@@ -13,8 +13,5 @@ public class JobSeekerDTO {
     private String phone;
     private String desiredSalary;
     private String preferredJobTypes; // JSON string
-    private List<JobSeekerSkillDTO> skills;
-    private List<JobSeekerExperienceDTO> experiences;
-    private List<JobSeekerEducationDTO> educations;
-    private List<JobSeekerCertificationDTO> certifications;
+
 } 

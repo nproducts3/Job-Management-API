@@ -14,5 +14,6 @@ public class JobSeekerCertification {
     @JoinColumn(name = "job_seeker_id", nullable = false)
     private JobSeeker jobSeeker;
 
+    @Column(name = "certification_name")
     private String certificationName;
 } 

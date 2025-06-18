@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,12 +25,14 @@ public class JobController {
 
     @PostMapping
     @Operation(summary = "Create a new job")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_EMPLOYEE', 'ROLE_JOBSEEKER')")
     public ResponseEntity<JobDTO> createJob(@Valid @RequestBody JobDTO jobDTO) {
         return new ResponseEntity<>(jobService.createJob(jobDTO), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update an existing job")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_EMPLOYEE', 'ROLE_JOBSEEKER')")
     public ResponseEntity<JobDTO> updateJob(@PathVariable String id, @Valid @RequestBody JobDTO jobDTO) {
         return ResponseEntity.ok(jobService.updateJob(id, jobDTO));
     }
@@ -42,6 +45,7 @@ public class JobController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a job")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<Void> deleteJob(@PathVariable String id) {
         jobService.deleteJob(id);
         return ResponseEntity.noContent().build();

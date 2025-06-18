@@ -14,7 +14,8 @@ public class ModelMapperConfig {
         ModelMapper modelMapper = new ModelMapper();
         modelMapper.getConfiguration()
             .setSkipNullEnabled(true)
-            .setAmbiguityIgnored(true);
+            .setAmbiguityIgnored(true)
+            .setPropertyCondition(context -> context.getSource() != null);
         
         // JobSeeker mapping
         modelMapper.createTypeMap(JobSeeker.class, JobSeekerDTO.class)
@@ -26,15 +27,25 @@ public class ModelMapperConfig {
         // JobSeekerSkill mapping
         modelMapper.createTypeMap(JobSeekerSkill.class, JobSeekerSkillDTO.class)
             .addMappings(mapper -> {
-                mapper.map(src -> src.getJobSeeker() != null ? src.getJobSeeker().getId() : null, 
-                    JobSeekerSkillDTO::setJobSeekerId);
+                mapper.map(src -> {
+                    try {
+                        return src.getJobSeeker() != null ? src.getJobSeeker().getId() : null;
+                    } catch (Exception e) {
+                        return null;
+                    }
+                }, JobSeekerSkillDTO::setJobSeekerId);
             });
 
         // JobSeekerExperience mapping
         modelMapper.createTypeMap(JobSeekerExperience.class, JobSeekerExperienceDTO.class)
             .addMappings(mapper -> {
-                mapper.map(src -> src.getJobSeeker() != null ? src.getJobSeeker().getId() : null, 
-                    JobSeekerExperienceDTO::setJobSeekerId);
+                mapper.map(src -> {
+                    try {
+                        return src.getJobSeeker() != null ? src.getJobSeeker().getId() : null;
+                    } catch (Exception e) {
+                        return null;
+                    }
+                }, JobSeekerExperienceDTO::setJobSeekerId);
                 mapper.map(src -> src.getStartDate() != null ? src.getStartDate().toString() : null, 
                     JobSeekerExperienceDTO::setStartDate);
                 mapper.map(src -> src.getEndDate() != null ? src.getEndDate().toString() : null, 
@@ -44,15 +55,25 @@ public class ModelMapperConfig {
         // JobSeekerEducation mapping
         modelMapper.createTypeMap(JobSeekerEducation.class, JobSeekerEducationDTO.class)
             .addMappings(mapper -> {
-                mapper.map(src -> src.getJobSeeker() != null ? src.getJobSeeker().getId() : null, 
-                    JobSeekerEducationDTO::setJobSeekerId);
+                mapper.map(src -> {
+                    try {
+                        return src.getJobSeeker() != null ? src.getJobSeeker().getId() : null;
+                    } catch (Exception e) {
+                        return null;
+                    }
+                }, JobSeekerEducationDTO::setJobSeekerId);
             });
 
         // JobSeekerCertification mapping
         modelMapper.createTypeMap(JobSeekerCertification.class, JobSeekerCertificationDTO.class)
             .addMappings(mapper -> {
-                mapper.map(src -> src.getJobSeeker() != null ? src.getJobSeeker().getId() : null, 
-                    JobSeekerCertificationDTO::setJobSeekerId);
+                mapper.map(src -> {
+                    try {
+                        return src.getJobSeeker() != null ? src.getJobSeeker().getId() : null;
+                    } catch (Exception e) {
+                        return null;
+                    }
+                }, JobSeekerCertificationDTO::setJobSeekerId);
             });
 
         return modelMapper;

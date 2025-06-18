@@ -15,9 +15,16 @@ public class JobSeekerExperience {
     @JoinColumn(name = "job_seeker_id", nullable = false)
     private JobSeeker jobSeeker;
 
+    @Column(name ="job_title")
     private String jobTitle;
+
+    @Column(name = "company_name")
     private String companyName;
+
+    @Column(name = "start_date")
     private LocalDate startDate;
+
+    @Column(name = "end_date")
     private LocalDate endDate;
 
     @Column(columnDefinition = "json")
