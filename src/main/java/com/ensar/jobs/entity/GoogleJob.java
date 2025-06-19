@@ -3,17 +3,21 @@ package com.ensar.jobs.entity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import java.sql.Timestamp;
+
 
 @Entity
 @Table(name = "google_jobs")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class GoogleJob {
+@EqualsAndHashCode(callSuper = true)
+public class GoogleJob extends BaseEntity {
     @Id
-    @Column(length = 255)
+    @GeneratedValue
+    @org.hibernate.annotations.UuidGenerator
+    @Column(length = 36)
     private String id;
 
     @Column(name = "job_id", length = 36, unique = true, nullable = false)
@@ -54,11 +58,7 @@ public class GoogleJob {
     @Column(name = "apply_links", columnDefinition = "TEXT")
     private String applyLinks;
 
-    @Column(name = "created_date_time")
-    private Timestamp createdDateTime;
-
-    @Column(name = "last_updated_date_time")
-    private Timestamp lastUpdatedDateTime;
+  
 
     @Column(name = "job_title_id", length = 36)
     private String jobTitleId;

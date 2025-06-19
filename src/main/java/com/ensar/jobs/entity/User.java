@@ -3,8 +3,8 @@ package com.ensar.jobs.entity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
@@ -14,7 +14,8 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+@EqualsAndHashCode(callSuper = true)
+public class User extends BaseEntity {
     
     @Id
     private String id;
@@ -27,14 +28,6 @@ public class User {
 
     @Column(nullable = false)
     private String password;
-
-    @CreationTimestamp
-    @Column(name = "created_date_time", updatable = false)
-    private LocalDateTime createdDateTime;
-
-    @UpdateTimestamp
-    @Column(name = "last_updated_date_time")
-    private LocalDateTime lastUpdatedDateTime;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id")

@@ -25,7 +25,7 @@ public class JobResumeController {
     );
 
     @PostMapping(value = "/upload/{googleJobId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_EMPLOYEE','ROLE_JOBSEEKER')")
     public ResponseEntity<JobResumeDTO> uploadResume(
             @PathVariable String googleJobId,
             @RequestParam("file") MultipartFile file) throws IOException {
@@ -47,7 +47,7 @@ public class JobResumeController {
     }
        
     @DeleteMapping("/job/{googleJobId}")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN')")
     public ResponseEntity<Void> deleteResume(@PathVariable String googleJobId) {
         jobResumeService.deleteResumeForJob(googleJobId);
         return ResponseEntity.ok().build();

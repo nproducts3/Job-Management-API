@@ -4,21 +4,22 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.time.LocalDateTime;
+import lombok.EqualsAndHashCode;
 
 @Entity
 @Table(name = "cities")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class City {
+@EqualsAndHashCode(callSuper = true)
+public class City extends BaseEntity {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
     
-    @Column(name = "rankin")
-    private Integer rankin;
+    @Column(name = "rankn")
+    private Integer rankn;
     
     @Column(nullable = false, length = 100)
     private String name;
@@ -32,25 +33,4 @@ public class City {
     private Integer population;
     
     private Double growth;
-    
-    @Column(name = "created_date_time")
-    private LocalDateTime createdDateTime;
-    
-    @Column(name = "last_updated_date_time")
-    private LocalDateTime lastUpdatedDateTime;
-    
-    @PrePersist
-    protected void onCreate() {
-        if (createdDateTime == null) {
-            createdDateTime = LocalDateTime.now();
-        }
-        if (lastUpdatedDateTime == null) {
-            lastUpdatedDateTime = LocalDateTime.now();
-        }
-    }
-    
-    @PreUpdate
-    protected void onUpdate() {
-        lastUpdatedDateTime = LocalDateTime.now();
-    }
 } 

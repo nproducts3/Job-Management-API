@@ -2,19 +2,19 @@ package com.ensar.jobs.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-import java.time.LocalDateTime;
+import lombok.EqualsAndHashCode;
+
 
 
 @Entity
 @Table(name = "job_seekers")
 @Data
-public class JobSeeker {
+@EqualsAndHashCode(callSuper = true)
+public class JobSeeker extends BaseEntity {
     @Id
     private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
@@ -35,11 +35,4 @@ public class JobSeeker {
 
     @Column(name = "preferred_job_types")
     private String preferredJobTypes;
-
-    @CreationTimestamp
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
 } 

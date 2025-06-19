@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 public class CityDTO {
     private Integer id;
     
-    private Integer rankin;
+    private Integer rankn;
     
     @NotBlank(message = "City name is required")
     @Size(max = 100, message = "City name cannot exceed 100 characters")

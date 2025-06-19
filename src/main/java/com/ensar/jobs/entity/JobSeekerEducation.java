@@ -2,11 +2,13 @@ package com.ensar.jobs.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Entity
-@Table(name = "job_seeker_education")
+@Table ( name = "job_seeker_education")
 @Data
-public class JobSeekerEducation {
+@EqualsAndHashCode(callSuper = true)
+public class JobSeekerEducation extends BaseEntity {
     @Id
     private String id;
 

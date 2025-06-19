@@ -118,6 +118,8 @@ CREATE TABLE `job_resumes` (
     `resume_text` TEXT,
     `match_percentage` DECIMAL(5,2) DEFAULT 0.00,
     `uploaded_at` DATETIME,
+    created_date_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_updated_date_time TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT `fk_job_resume_job` FOREIGN KEY (`googlejob_id`) REFERENCES `google_jobs` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 
@@ -131,8 +133,8 @@ CREATE TABLE job_seekers (
     phone VARCHAR(50),
     desired_salary VARCHAR(50),
     preferred_job_types VARCHAR(255),
-    created_at DATETIME,
-    updated_at DATETIME,
+    created_date_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_updated_date_time TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_job_seeker_user FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 
@@ -141,6 +143,8 @@ CREATE TABLE job_seeker_skills (
     id CHAR(36) PRIMARY KEY,
     job_seeker_id CHAR(36) NOT NULL,
     skill_name VARCHAR(255) NOT NULL,
+    created_date_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_updated_date_time TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_job_seeker_skill FOREIGN KEY (job_seeker_id) REFERENCES job_seekers(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 
@@ -153,6 +157,8 @@ CREATE TABLE job_seeker_experience (
     start_date DATE,
     end_date DATE,
     responsibilities JSON,
+    created_date_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_updated_date_time TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_job_seeker_experience FOREIGN KEY (job_seeker_id) REFERENCES job_seekers(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 
@@ -163,6 +169,8 @@ CREATE TABLE job_seeker_education (
     degree VARCHAR(255),
     university VARCHAR(255),
     graduation_year INT,
+    created_date_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_updated_date_time TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_job_seeker_education FOREIGN KEY (job_seeker_id) REFERENCES job_seekers(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 
@@ -171,5 +179,7 @@ CREATE TABLE job_seeker_certifications (
     id CHAR(36) PRIMARY KEY,
     job_seeker_id CHAR(36) NOT NULL,
     certification_name VARCHAR(255),
+    created_date_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_updated_date_time TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_job_seeker_certification FOREIGN KEY (job_seeker_id) REFERENCES job_seekers(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
