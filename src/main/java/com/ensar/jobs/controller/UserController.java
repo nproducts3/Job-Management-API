@@ -25,8 +25,7 @@ public class UserController {
     }
 
     @PostMapping
-    @Operation(summary = "Create a new user", description = "Creates a new user with the provided details")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @Operation(summary = "Create a new user", description = "Creates a new user with the provided details")   
     public ResponseEntity<UserDTO> createUser(@Valid @RequestBody UserDTO userDTO) {
         return new ResponseEntity<>(userService.createUser(userDTO), HttpStatus.CREATED);
     }
