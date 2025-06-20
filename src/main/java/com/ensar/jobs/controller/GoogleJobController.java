@@ -51,7 +51,6 @@ public class GoogleJobController {
 
     @GetMapping
     @Operation(summary = "Get all Google jobs")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN','ROLE_EMPLOYEE')")
     public ResponseEntity<List<GoogleJobDTO>> getAllGoogleJobs() {
         return ResponseEntity.ok(googleJobService.getAllGoogleJobs());
     }

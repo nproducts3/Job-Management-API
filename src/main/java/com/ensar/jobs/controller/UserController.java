@@ -39,14 +39,12 @@ public class UserController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get user by ID", description = "Retrieves a user's information by their ID")
-    @PreAuthorize("hasRole('ROLE_ADMIN') or #id == authentication.principal.id")
     public ResponseEntity<UserDTO> getUserById(@PathVariable String id) {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
     @GetMapping
     @Operation(summary = "Get all users", description = "Retrieves a list of all users")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<List<UserDTO>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
