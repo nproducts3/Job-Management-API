@@ -27,6 +27,10 @@ public class JobSeekerService {
 
     public JobSeekerDTO createJobSeeker(JobSeekerDTO jobSeekerDTO) {
         JobSeeker jobSeeker = mapToEntity(jobSeekerDTO);
+        // Assign a UUID if id is null or empty
+        if (jobSeeker.getId() == null || jobSeeker.getId().isEmpty()) {
+            jobSeeker.setId(java.util.UUID.randomUUID().toString());
+        }
         
         // Set the User entity from userId
         if (jobSeekerDTO.getUserId() != null) {

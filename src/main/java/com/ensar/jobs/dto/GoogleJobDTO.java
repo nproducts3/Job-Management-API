@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.util.List;
 
 @Data
 @Builder
@@ -22,8 +23,8 @@ public class GoogleJobDTO {
     private String scheduleType;
     private String qualifications;
     private String description;
-    private String responsibilities;
-    private String benefits;
+    private List<String> responsibilities;
+    private List<String> benefits;
     private String applyLinks;
     private String createdDateTime;
     private String lastUpdatedDateTime;

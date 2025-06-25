@@ -5,6 +5,8 @@ import com.ensar.jobs.entity.GoogleJob;
 import com.ensar.jobs.repository.GoogleJobRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -52,6 +54,12 @@ public class GoogleJobService {
         return googleJobRepository.findAll().stream()
             .map(this::mapToDTO)
             .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<GoogleJobDTO> getAllGoogleJobs(Pageable pageable) {
+        return googleJobRepository.findAll(pageable)
+            .map(this::mapToDTO);
     }
 
     // Manual mapping methods

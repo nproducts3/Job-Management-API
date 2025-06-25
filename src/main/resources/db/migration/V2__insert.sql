@@ -65,3 +65,5 @@ VALUES
   ('b3e1c1e2-1234-4a5b-8c6d-123456781001', 'b3e1c1e2-1234-4a5b-8c6d-123456790001', '/resumes/alice.pdf', 'Experienced software engineer...', 95.00, NOW(), NOW(), NOW()),
   ('b3e1c1e2-1234-4a5b-8c6d-123456781002', 'b3e1c1e2-1234-4a5b-8c6d-123456790002', '/resumes/bob.pdf', 'Data analyst with 3 years experience...', 90.00, NOW(), NOW(), NOW());
 
+ALTER TABLE google_jobs ADD INDEX idx_created_date_time (created_date_time);
+

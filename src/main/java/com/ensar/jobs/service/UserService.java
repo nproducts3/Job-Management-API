@@ -76,7 +76,7 @@ public class UserService {
                     .orElseThrow(() -> new IllegalArgumentException("Invalid organizationId: " + userDTO.getOrganizationId()));
             existingUser.setOrganization(org);
         } else {
-            existingUser.setOrganization(null);
+            throw new IllegalArgumentException("organizationId is required and cannot be null");
         }
 
         // Set Role

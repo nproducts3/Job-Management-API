@@ -246,13 +246,11 @@ public class JobResumeService {
         Set<String> skills = new HashSet<>();
         // Extract skills from responsibilities, benefits, qualifications, description
         try {
-            if (googleJob.getResponsibilities() != null && !googleJob.getResponsibilities().trim().isEmpty()) {
-                List<String> jsonSkills = objectMapper.readValue(googleJob.getResponsibilities(), new TypeReference<List<String>>() {});
-                skills.addAll(jsonSkills.stream().map(String::toLowerCase).collect(Collectors.toSet()));
+            if (googleJob.getResponsibilities() != null && !googleJob.getResponsibilities().isEmpty()) {
+                skills.addAll(googleJob.getResponsibilities().stream().map(String::toLowerCase).collect(Collectors.toSet()));
             }
-            if (googleJob.getBenefits() != null && !googleJob.getBenefits().trim().isEmpty()) {
-                List<String> jsonSkills = objectMapper.readValue(googleJob.getBenefits(), new TypeReference<List<String>>() {});
-                skills.addAll(jsonSkills.stream().map(String::toLowerCase).collect(Collectors.toSet()));
+            if (googleJob.getBenefits() != null && !googleJob.getBenefits().isEmpty()) {
+                skills.addAll(googleJob.getBenefits().stream().map(String::toLowerCase).collect(Collectors.toSet()));
             }
             if (googleJob.getQualifications() != null) {
                 skills.addAll(extractSkillsFromText(googleJob.getQualifications()));

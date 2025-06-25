@@ -183,3 +183,7 @@ CREATE TABLE job_seeker_certifications (
     last_updated_date_time TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_job_seeker_certification FOREIGN KEY (job_seeker_id) REFERENCES job_seekers(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+
+   ALTER TABLE google_jobs MODIFY responsibilities JSON;
+   ALTER TABLE google_jobs MODIFY benefits JSON;

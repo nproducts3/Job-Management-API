@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import java.util.List;
 
 
 @Entity
@@ -49,11 +50,13 @@ public class GoogleJob extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(columnDefinition = "JSON")
-    private String responsibilities;
+    @Convert(converter = com.ensar.jobs.entity.StringListJsonConverter.class)
+    @Column(columnDefinition = "json")
+    private List<String> responsibilities;
 
-    @Column(columnDefinition = "JSON")
-    private String benefits;
+    @Convert(converter = com.ensar.jobs.entity.StringListJsonConverter.class)
+    @Column(columnDefinition = "json")
+    private List<String> benefits;
 
     @Column(name = "apply_links", columnDefinition = "TEXT")
     private String applyLinks;
