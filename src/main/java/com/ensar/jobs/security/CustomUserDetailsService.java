@@ -24,11 +24,21 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmailWithRole(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
         System.out.println("[DEBUG] Found user: " + user.getEmail() + ", password: " + user.getPassword());
+        
+        // Check if user is disabled
+        boolean isEnabled = user.getDisabled() == null || !user.getDisabled();
+        System.out.println("[DEBUG] User disabled status: " + user.getDisabled() + ", isEnabled: " + isEnabled);
+        
         String roleName = user.getRole() != null ? user.getRole().getRoleName() : "ROLE_USER";
         GrantedAuthority authority = new SimpleGrantedAuthority(roleName);
+        
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
                 user.getPassword(),
+                isEnabled, // enabled
+                true, // accountNonExpired
+                true, // credentialsNonExpired
+                true, // accountNonLocked
                 Collections.singletonList(authority)
         );
     }

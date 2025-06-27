@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "role")
@@ -14,6 +15,8 @@ import lombok.AllArgsConstructor;
 @EqualsAndHashCode(callSuper = true)
 public class Role extends BaseEntity {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @UuidGenerator
     @Column(length = 36)
     private String id;
 

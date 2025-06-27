@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.UuidGenerator;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -18,6 +19,8 @@ import java.time.LocalDateTime;
 @EqualsAndHashCode(callSuper = true)
 public class JobResume extends BaseEntity {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @UuidGenerator
     @Column(length = 36)
     private String id;
 

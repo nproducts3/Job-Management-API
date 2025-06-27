@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
 
@@ -18,6 +19,8 @@ import java.time.LocalDateTime;
 public class User extends BaseEntity {
     
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @UuidGenerator
     private String id;
 
     @Column(nullable = false, unique = true, length = 100)

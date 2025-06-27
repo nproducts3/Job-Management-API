@@ -2,12 +2,21 @@ package com.ensar.jobs.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "job_seeker_skills")
 @Data
-public class JobSeekerSkill {
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode(callSuper = true)
+public class JobSeekerSkill extends BaseEntity {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @UuidGenerator
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)

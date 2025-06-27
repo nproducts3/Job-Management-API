@@ -3,6 +3,9 @@ package com.ensar.jobs.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDate;
 
@@ -10,8 +13,12 @@ import java.time.LocalDate;
 @Table(name = "job_seeker_experience")
 @EqualsAndHashCode(callSuper = true)
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class JobSeekerExperience extends BaseEntity {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @UuidGenerator
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
