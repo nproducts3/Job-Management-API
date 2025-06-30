@@ -33,27 +33,31 @@ public class UserService {
 
         User user = mapToEntity(userDTO);
 
+        // Always generate a new ID for new users (let JPA handle it)
+        user.setId(null);
+
         // Set Organization
-        if (userDTO.getOrganizationId() != null) {
+        if (userDTO.getOrganizationId() != null && !userDTO.getOrganizationId().isEmpty()) {
             Organization org = organizationRepository.findById(userDTO.getOrganizationId())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid organizationId: " + userDTO.getOrganizationId()));
             user.setOrganization(org);
         } else {
-            user.setOrganization(null);
+            // Assign first organization in DB if not provided or empty
+            Organization defaultOrg = organizationRepository.findAll().stream().findFirst().orElse(null);
+            user.setOrganization(defaultOrg);
         }
 
         // Set Role
-        if (userDTO.getRoleId() != null) {
+        if (userDTO.getRoleId() != null && !userDTO.getRoleId().isEmpty()) {
             Role role = roleRepository.findById(userDTO.getRoleId())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid roleId: " + userDTO.getRoleId()));
             user.setRole(role);
         } else {
-            user.setRole(null);
+            // Assign ROLE_JOBSEEKER as default if not provided or empty
+            Role defaultRole = roleRepository.findByRoleName("ROLE_JOBSEEKER").orElse(null);
+            user.setRole(defaultRole);
         }
 
-        if (user.getId() == null || user.getId().isEmpty()) {
-            user.setId(UUID.randomUUID().toString());
-        }
         user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         user = userRepository.save(user);
         return mapToDTO(user);
@@ -71,7 +75,7 @@ public class UserService {
         updateEntityFromDTO(existingUser, userDTO);
 
         // Set Organization
-        if (userDTO.getOrganizationId() != null) {
+        if (userDTO.getOrganizationId() != null && !userDTO.getOrganizationId().isEmpty()) {
             Organization org = organizationRepository.findById(userDTO.getOrganizationId())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid organizationId: " + userDTO.getOrganizationId()));
             existingUser.setOrganization(org);
@@ -140,7 +144,8 @@ public class UserService {
     // Manual mapping methods
     private User mapToEntity(UserDTO dto) {
         User entity = new User();
-        entity.setId(dto.getId());
+        // Do not set ID from DTO for new users
+        // entity.setId(dto.getId());
         entity.setUsername(dto.getUsername());
         entity.setEmail(dto.getEmail());
         entity.setPassword(dto.getPassword());
