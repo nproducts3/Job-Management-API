@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -39,7 +40,9 @@ public class GoogleJobService {
     public GoogleJobDTO getGoogleJobById(String id) {
         GoogleJob googleJob = googleJobRepository.findById(id)
             .orElseThrow(() -> new EntityNotFoundException("Google job not found with id: " + id));
-        return mapToDTO(googleJob);
+        GoogleJobDTO dto = mapToDTO(googleJob);
+        dto.setJobId(googleJob.getJobId());
+        return dto;
     }
 
     public void deleteGoogleJob(String id) {
@@ -92,7 +95,11 @@ public class GoogleJobService {
         dto.setLocation(entity.getLocation());
         dto.setVia(entity.getVia());
         dto.setShareLink(entity.getShareLink());
-        dto.setPostedAt(entity.getPostedAt());
+        if (entity.getCreatedDateTime() != null) {
+            dto.setPostedAt(getTimeAgo(entity.getCreatedDateTime()));
+        } else {
+            dto.setPostedAt(null);
+        }
         dto.setSalary(entity.getSalary());
         dto.setScheduleType(entity.getScheduleType());
         dto.setQualifications(entity.getQualifications());
@@ -103,6 +110,24 @@ public class GoogleJobService {
         dto.setCreatedDateTime(entity.getCreatedDateTime() != null ? entity.getCreatedDateTime().toString() : null);
         dto.setLastUpdatedDateTime(entity.getLastUpdatedDateTime() != null ? entity.getLastUpdatedDateTime().toString() : null);
         return dto;
+    }
+
+    private String getTimeAgo(java.time.LocalDateTime createdDateTime) {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC);
+        java.time.Duration duration = java.time.Duration.between(createdDateTime, now);
+        long seconds = duration.getSeconds();
+        if (seconds < 60) {
+            return "Just now";
+        } else if (seconds < 3600) {
+            long minutes = seconds / 60;
+            return minutes + (minutes == 1 ? " minute ago" : " minutes ago");
+        } else if (seconds < 86400) {
+            long hours = seconds / 3600;
+            return hours + (hours == 1 ? " hour ago" : " hours ago");
+        } else {
+            long days = seconds / 86400;
+            return days + (days == 1 ? " day ago" : " days ago");
+        }
     }
 
     private void updateEntityFromDTO(GoogleJob entity, GoogleJobDTO dto) {

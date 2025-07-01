@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 @CrossOrigin(origins = "*")
 @RestController
@@ -36,20 +37,20 @@ public class JobResumeController {
             return ResponseEntity.badRequest().build();
         }
 
-        JobResumeDTO result = jobResumeService.uploadAndProcessResume(file, googleJobId);
+        JobResumeDTO result = jobResumeService.uploadAndProcessResume(file, UUID.fromString(googleJobId));
         return ResponseEntity.ok(result);
     }
 
     @GetMapping("/job/{googleJobId}")
     public ResponseEntity<List<JobResumeDTO>> getResumesByJobId(@PathVariable String googleJobId) {
-        List<JobResumeDTO> resumes = jobResumeService.getResumesByJobId(googleJobId);
+        List<JobResumeDTO> resumes = jobResumeService.getResumesByJobId(UUID.fromString(googleJobId));
         return ResponseEntity.ok(resumes);
     }
        
     @DeleteMapping("/job/{googleJobId}")
     @PreAuthorize("hasAnyRole('ROLE_ADMIN')")
     public ResponseEntity<Void> deleteResume(@PathVariable String googleJobId) {
-        jobResumeService.deleteResumeForJob(googleJobId);
+        jobResumeService.deleteResumeForJob(UUID.fromString(googleJobId));
         return ResponseEntity.ok().build();
     }
 } 

@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UuidGenerator;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "job_resumes")
@@ -25,7 +26,7 @@ public class JobResume extends BaseEntity {
     private String id;
 
     @Column(name = "googlejob_id", length = 255)
-    private String googlejobId;
+    private UUID googlejobId;
 
     @Column(name = "resume_file", length = 255)
     private String resumeFile;

@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import java.util.List;
+import java.util.UUID;
 
 
 @Entity
@@ -21,8 +22,8 @@ public class GoogleJob extends BaseEntity {
     @Column(length = 36)
     private String id;
 
-    @Column(name = "job_id", length = 36, unique = true, nullable = false)
-    private String jobId;
+    @Column(name = "job_id", unique = true, nullable = false)
+    private UUID jobId;
 
     @Column(nullable = false)
     private String title;

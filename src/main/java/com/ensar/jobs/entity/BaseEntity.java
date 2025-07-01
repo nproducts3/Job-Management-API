@@ -7,6 +7,7 @@ import jakarta.persistence.PreUpdate;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @MappedSuperclass
 public abstract class BaseEntity {
@@ -21,16 +22,16 @@ public abstract class BaseEntity {
     @PrePersist
     protected void onCreate() {
         if (createdDateTime == null) {
-            createdDateTime = LocalDateTime.now();
+            createdDateTime = LocalDateTime.now(ZoneOffset.UTC);
         }
         if (lastUpdatedDateTime == null) {
-            lastUpdatedDateTime = LocalDateTime.now();
+            lastUpdatedDateTime = LocalDateTime.now(ZoneOffset.UTC);
         }
     }
 
     @PreUpdate
     protected void onUpdate() {
-        lastUpdatedDateTime = LocalDateTime.now();
+        lastUpdatedDateTime = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public LocalDateTime getCreatedDateTime() {

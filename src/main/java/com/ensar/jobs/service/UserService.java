@@ -37,15 +37,7 @@ public class UserService {
         user.setId(null);
 
         // Set Organization
-        if (userDTO.getOrganizationId() != null && !userDTO.getOrganizationId().isEmpty()) {
-            Organization org = organizationRepository.findById(userDTO.getOrganizationId())
-                    .orElseThrow(() -> new IllegalArgumentException("Invalid organizationId: " + userDTO.getOrganizationId()));
-            user.setOrganization(org);
-        } else {
-            // Assign first organization in DB if not provided or empty
-            Organization defaultOrg = organizationRepository.findAll().stream().findFirst().orElse(null);
-            user.setOrganization(defaultOrg);
-        }
+        user.setOrganization(null);
 
         // Set Role
         if (userDTO.getRoleId() != null && !userDTO.getRoleId().isEmpty()) {
@@ -56,6 +48,11 @@ public class UserService {
             // Assign ROLE_JOBSEEKER as default if not provided or empty
             Role defaultRole = roleRepository.findByRoleName("ROLE_JOBSEEKER").orElse(null);
             user.setRole(defaultRole);
+        }
+
+        // Ensure disabled is never null
+        if (user.getDisabled() == null) {
+            user.setDisabled(false);
         }
 
         user.setPassword(passwordEncoder.encode(userDTO.getPassword()));

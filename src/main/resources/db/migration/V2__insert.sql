@@ -67,3 +67,6 @@ VALUES
 
 ALTER TABLE google_jobs ADD INDEX idx_created_date_time (created_date_time);
 
+
+
+ALTER TABLE users MODIFY organization_id CHAR(36) NULL;

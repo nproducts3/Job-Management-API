@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -12,7 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 public class GoogleJobDTO {
     private String id;
-    private String jobId;
+    private UUID jobId;
     private String title;
     private String companyName;
     private String location;

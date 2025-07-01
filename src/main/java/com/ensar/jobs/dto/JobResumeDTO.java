@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -15,7 +16,7 @@ import java.time.LocalDateTime;
 public class JobResumeDTO {
     private String id;
     @NotNull(message = "Google Job ID is required")
-    private String googleJobId;
+    private UUID googleJobId;
     private String resumeFile;
     private String resumeText;
     

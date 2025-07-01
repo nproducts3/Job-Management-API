@@ -136,9 +136,9 @@ public class JobResumeService {
         ));
     }
 
-    public JobResumeDTO uploadAndProcessResume(MultipartFile file, String googleJobId) throws IOException {
+    public JobResumeDTO uploadAndProcessResume(MultipartFile file, UUID googleJobId) throws IOException {
         try {
-            if (googleJobId == null || googleJobId.isBlank()) {
+            if (googleJobId == null) {
                 throw new IllegalArgumentException("Invalid Google Job ID (googleJobId) format.");
             }
 
@@ -169,7 +169,7 @@ public class JobResumeService {
             log.info("Successfully extracted text from resume, length: {} characters", resumeText.length());
 
             // Fetch GoogleJob for job title and company name
-            GoogleJob googleJob = googleJobRepository.findById(googleJobId)
+            GoogleJob googleJob = googleJobRepository.findById(googleJobId.toString())
                 .orElse(null);
             String jobTitle = googleJob != null ? googleJob.getTitle() : null;
             String companyName = googleJob != null ? googleJob.getCompanyName() : null;
@@ -532,9 +532,9 @@ public class JobResumeService {
         }
     }
 
-    public List<JobResumeDTO> getResumesByJobId(String googleJobId) {
+    public List<JobResumeDTO> getResumesByJobId(UUID googleJobId) {
         List<JobResume> resumes = jobResumeRepository.findByGooglejobId(googleJobId);
-        GoogleJob googleJob = googleJobRepository.findById(googleJobId).orElse(null);
+        GoogleJob googleJob = googleJobRepository.findById(googleJobId.toString()).orElse(null);
         String jobTitle = googleJob != null ? googleJob.getTitle() : null;
         String companyName = googleJob != null ? googleJob.getCompanyName() : null;
         Set<String> jobSkills = googleJob != null ? extractJobSkills(googleJob) : new HashSet<>();
@@ -560,7 +560,7 @@ public class JobResumeService {
         }).collect(Collectors.toList());
     }
 
-    public void deleteResumeForJob(String googleJobId) {
+    public void deleteResumeForJob(UUID googleJobId) {
         List<JobResume> existingResumes = jobResumeRepository.findByGooglejobId(googleJobId);
         for (JobResume existingResume : existingResumes) {
             Path existingFilePath = Paths.get(UPLOAD_DIR, existingResume.getResumeFile());
