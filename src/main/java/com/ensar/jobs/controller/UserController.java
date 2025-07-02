@@ -49,6 +49,12 @@ public class UserController {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
+    @GetMapping("/jobseekers")
+    @Operation(summary = "Get all jobseeker users", description = "Retrieves a list of all users with the role of Jobseeker")
+    public ResponseEntity<List<UserDTO>> getAllJobSeekerUsers() {
+        return ResponseEntity.ok(userService.getAllJobSeekerUsers());
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a user", description = "Deletes a user by their ID")
     public ResponseEntity<Void> deleteUser(@PathVariable String id) {

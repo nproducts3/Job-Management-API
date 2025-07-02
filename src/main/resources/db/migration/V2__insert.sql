@@ -2,7 +2,7 @@
 INSERT INTO role (id, role_name, role_description, role_permission, created_date_time, last_updated_date_time) VALUES
   ('b3e1c1e2-1234-4a5b-8c6d-123456789a01', 'ROLE_ADMIN', 'Administrator role', 'ALL', NOW(), NOW()),
   ('b3e1c1e2-1234-4a5b-8c6d-123456789a02', 'ROLE_JOBSEEKER', 'User role', 'READ', NOW(), NOW()),
-  ('b3e1c1e2-1234-4a5b-8c6d-123456789a03', 'ROLE_EMPLOYEE', 'Recruiter role', 'READ,WRITE', NOW(), NOW());
+  ('b3e1c1e2-1234-4a5b-8c6d-123456789a03', 'ROLE_EMPLOYER', 'Recruiter role', 'READ,WRITE', NOW(), NOW());
 
 INSERT INTO organization (id, name, description, domain, disabled, created_date_time, last_updated_date_time) VALUES
   ('b3e1c1e2-1234-4a5b-8c6d-123456789b01', 'Default Organization', 'Default org for users', 'default.com', 0, NOW(), NOW());

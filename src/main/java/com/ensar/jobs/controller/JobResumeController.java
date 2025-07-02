@@ -26,7 +26,7 @@ public class JobResumeController {
     );
 
     @PostMapping(value = "/upload/{googleJobId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_EMPLOYEE','ROLE_JOBSEEKER')")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_EMPLOYER','ROLE_JOBSEEKER')")
     public ResponseEntity<JobResumeDTO> uploadResume(
             @PathVariable String googleJobId,
             @RequestParam("file") MultipartFile file) throws IOException {

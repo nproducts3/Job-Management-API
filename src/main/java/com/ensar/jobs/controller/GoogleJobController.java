@@ -26,14 +26,14 @@ public class GoogleJobController {
 
     @PostMapping
     @Operation(summary = "Create a new Google job")
-    // @PreAuthorize("hasAnyRole('ROLE_ADMIN','ROLE_EMPLOYEE')")
+    // @PreAuthorize("hasAnyRole('ROLE_ADMIN','ROLE_EMPLOYER')")
     public ResponseEntity<GoogleJobDTO> createGoogleJob(@Valid @RequestBody GoogleJobDTO googleJobDTO) {
         return new ResponseEntity<>(googleJobService.createGoogleJob(googleJobDTO), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update an existing Google job")
-    // @PreAuthorize("hasAnyRole('ROLE_ADMIN','ROLE_EMPLOYEE')")
+    // @PreAuthorize("hasAnyRole('ROLE_ADMIN','ROLE_EMPLOYER')")
     public ResponseEntity<GoogleJobDTO> updateGoogleJob(@PathVariable String id, @Valid @RequestBody GoogleJobDTO googleJobDTO) {
         return ResponseEntity.ok(googleJobService.updateGoogleJob(id, googleJobDTO));
     }
@@ -46,7 +46,7 @@ public class GoogleJobController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a Google job")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN','ROLE_EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN','ROLE_EMPLOYER')")
     public ResponseEntity<Void> deleteGoogleJob(@PathVariable String id) {
         googleJobService.deleteGoogleJob(id);
         return ResponseEntity.noContent().build();

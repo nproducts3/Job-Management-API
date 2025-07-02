@@ -143,6 +143,13 @@ public class UserService {
         return mapToDTO(user);
     }
 
+    public List<UserDTO> getAllJobSeekerUsers() {
+        return userRepository.findAllByRoleName("ROLE_JOBSEEKER")
+                .stream()
+                .map(this::mapToDTO)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     // Manual mapping methods
     private User mapToEntity(UserDTO dto) {
         User entity = new User();
