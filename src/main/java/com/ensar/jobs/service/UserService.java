@@ -40,15 +40,20 @@ public class UserService {
         user.setOrganization(null);
 
         // Set Role
+        Role assignedRole = null;
         if (userDTO.getRoleId() != null && !userDTO.getRoleId().isEmpty()) {
-            Role role = roleRepository.findById(userDTO.getRoleId())
-                    .orElseThrow(() -> new IllegalArgumentException("Invalid roleId: " + userDTO.getRoleId()));
-            user.setRole(role);
+            assignedRole = roleRepository.findById(userDTO.getRoleId()).orElse(null);
+            if (assignedRole == null) {
+                // If provided roleId is invalid, fallback to default role by name
+                assignedRole = roleRepository.findByRoleName("ROLE_JOBSEEKER")
+                        .orElseThrow(() -> new IllegalArgumentException("Default role ROLE_JOBSEEKER not found in DB"));
+            }
         } else {
             // Assign ROLE_JOBSEEKER as default if not provided or empty
-            Role defaultRole = roleRepository.findByRoleName("ROLE_JOBSEEKER").orElse(null);
-            user.setRole(defaultRole);
+            assignedRole = roleRepository.findByRoleName("ROLE_JOBSEEKER")
+                    .orElseThrow(() -> new IllegalArgumentException("Default role ROLE_JOBSEEKER not found in DB"));
         }
+        user.setRole(assignedRole);
 
         // Ensure disabled is never null
         if (user.getDisabled() == null) {
