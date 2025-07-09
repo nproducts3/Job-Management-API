@@ -37,6 +37,9 @@ public class JobSeekerService {
             User user = userRepository.findById(jobSeekerDTO.getUserId())
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + jobSeekerDTO.getUserId()));
             jobSeeker.setUser(user);
+            // Always set first_name and last_name from User for consistency
+            jobSeeker.setFirstName(user.getFirstName());
+            jobSeeker.setLastName(user.getLastName());
         }
         
         jobSeeker = jobSeekerRepository.save(jobSeeker);

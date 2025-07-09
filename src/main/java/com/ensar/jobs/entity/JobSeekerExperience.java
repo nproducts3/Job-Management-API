@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Entity
 @Table(name = "job_seeker_experience")
@@ -37,6 +38,7 @@ public class JobSeekerExperience extends BaseEntity {
     @Column(name = "end_date")
     private LocalDate endDate;
 
+    @Convert(converter = com.ensar.jobs.entity.StringListJsonConverter.class)
     @Column(columnDefinition = "json")
-    private String responsibilities;
+    private List<String> responsibilities;
 } 

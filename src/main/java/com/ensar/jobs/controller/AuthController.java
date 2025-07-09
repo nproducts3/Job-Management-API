@@ -106,7 +106,8 @@ public class AuthController {
                 // Set a random password (hashed) for Google users
                 user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
                 // Set default role (update as needed)
-                Role defaultRole = roleRepository.findByRoleName("ROLE_USER").orElse(null);
+                Role defaultRole = roleRepository.findByRoleName("ROLE_JOBSEEKER")
+                    .orElseThrow(() -> new IllegalStateException("Default role ROLE_JOBSEEKER not found in DB"));
                 user.setRole(defaultRole);
                 // Set first name, last name, and profile picture if available
                 String fullName = decodedToken.getName();

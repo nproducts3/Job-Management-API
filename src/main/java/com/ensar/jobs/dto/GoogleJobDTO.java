@@ -6,6 +6,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.List;
 import java.util.UUID;
+import com.ensar.jobs.entity.JobTitle;
+import com.ensar.jobs.entity.City;
 
 @Data
 @Builder
@@ -13,7 +15,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class GoogleJobDTO {
     private String id;
-    private UUID jobId;
+    private String jobId;
     private String title;
     private String companyName;
     private String location;
@@ -29,6 +31,6 @@ public class GoogleJobDTO {
     private String applyLinks;
     private String createdDateTime;
     private String lastUpdatedDateTime;
-    private String jobTitleId;
-    private String cityId;
+    private JobTitle jobTitle;
+    private City city;
 } 

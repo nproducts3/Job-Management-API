@@ -9,6 +9,8 @@ import com.ensar.jobs.repository.RoleRepository;
 import com.ensar.jobs.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,7 +39,18 @@ public class UserService {
         user.setId(null);
 
         // Set Organization
-        user.setOrganization(null);
+        if (userDTO.getOrganizationId() != null && !userDTO.getOrganizationId().isEmpty()) {
+            Organization org = organizationRepository.findById(userDTO.getOrganizationId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid organizationId: " + userDTO.getOrganizationId()));
+            user.setOrganization(org);
+        } else {
+            // Assign the first available organization as default
+            Organization defaultOrg = organizationRepository.findAll().stream().findFirst().orElse(null);
+            if (defaultOrg == null) {
+                throw new IllegalStateException("No organization found in the database to assign to user");
+            }
+            user.setOrganization(defaultOrg);
+        }
 
         // Set Role
         Role assignedRole = null;
@@ -123,6 +136,10 @@ public class UserService {
             .collect(Collectors.toList());
     }
 
+    public Page<UserDTO> getPagedUsers(Pageable pageable) {
+        return userRepository.findAll(pageable).map(this::mapToDTO);
+    }
+
     public void deleteUser(String id) {
         if (!userRepository.existsById(id)) {
             throw new EntityNotFoundException("User not found with id: " + id);
@@ -148,6 +165,10 @@ public class UserService {
                 .stream()
                 .map(this::mapToDTO)
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    public Page<UserDTO> getPagedJobSeekerUsers(Pageable pageable) {
+        return userRepository.findAllByRoleName("ROLE_JOBSEEKER", pageable).map(this::mapToDTO);
     }
 
     // Manual mapping methods

@@ -447,3 +447,200 @@ GET /api/applications/check?jobId={jobId}&userId={userId}
 Example: GET /api/applications/check?jobId=1&userId=1
 Response: true/false
 ``` 
+
+# Job Management API Documentation
+
+## Resume Analysis Endpoints
+
+### 1. Analyze Resume Against All Jobs
+**POST** `/api/resume-analysis/analyze`
+
+Upload a resume and get comprehensive analysis against all available Google Jobs.
+
+**Request:**
+- `file`: Resume file (PDF or DOCX)
+- `jobSeekerId`: Job seeker ID
+
+**Response:**
+```json
+{
+  "resumeId": "uuid",
+  "resumeFile": "resume.pdf",
+  "resumeText": "Extracted text from resume...",
+  "uploadedAt": "2025-07-08T10:30:00",
+  "jobSeekerId": "job-seeker-uuid",
+  "jobSeekerName": "John Doe",
+  "extractedSkills": ["java", "spring", "sql", "react"],
+  "skillsByCategory": {
+    "programming_languages": ["java"],
+    "backend": ["spring"],
+    "databases": ["sql"],
+    "frontend": ["react"]
+  },
+  "jobMatches": [
+    {
+      "jobId": "job-uuid",
+      "jobTitle": "Senior Software Engineer",
+      "companyName": "Tech Corp",
+      "location": "New York",
+      "matchPercentage": 85.5,
+      "matchedSkills": ["java", "spring", "sql"],
+      "missingSkills": ["kubernetes"],
+      "categoryScores": {
+        "programming_languages": 90.0,
+        "backend": 85.0,
+        "databases": 80.0
+      },
+      "jobDescription": "Job description...",
+      "qualifications": "Required qualifications...",
+      "responsibilities": ["Develop features", "Code review"],
+      "benefits": ["Health insurance", "401k"],
+      "applyLink": "https://apply.example.com",
+      "salary": "$120,000",
+      "scheduleType": "Full-time"
+    }
+  ],
+  "averageMatchPercentage": 65.2,
+  "totalJobsAnalyzed": 150,
+  "highMatchJobs": 25,
+  "mediumMatchJobs": 45,
+  "lowMatchJobs": 80
+}
+```
+
+### 2. Get Top Matching Jobs
+**POST** `/api/resume-analysis/top-matches`
+
+Analyze resume text and return top matching jobs.
+
+**Request:**
+- `resumeText`: Resume text content
+- `limit`: Number of top matches (default: 10)
+
+**Response:**
+```json
+[
+  {
+    "jobId": "job-uuid",
+    "jobTitle": "Software Engineer",
+    "companyName": "Tech Corp",
+    "location": "San Francisco",
+    "matchPercentage": 92.5,
+    "matchedSkills": ["java", "spring", "sql", "react"],
+    "missingSkills": ["docker"],
+    "categoryScores": {
+      "programming_languages": 95.0,
+      "backend": 90.0,
+      "frontend": 85.0
+    }
+  }
+]
+```
+
+### 3. Extract Skills from Resume Text
+**GET** `/api/resume-analysis/skills`
+
+Extract and categorize skills from resume text.
+
+**Request:**
+- `resumeText`: Resume text content
+
+**Response:**
+```json
+{
+  "extractedSkills": ["java", "spring", "sql", "react", "javascript"],
+  "skillsByCategory": {
+    "programming_languages": ["java", "javascript"],
+    "backend": ["spring"],
+    "databases": ["sql"],
+    "frontend": ["react"]
+  }
+}
+```
+
+## Skill Categories
+
+The system recognizes and categorizes skills into the following categories:
+
+### Programming Languages
+- Java, Python, JavaScript, TypeScript, Ruby, PHP, C++, C#
+
+### Frontend Development
+- HTML, CSS, React, Angular, Vue, Webpack
+
+### Backend Development
+- Node.js, Express, Spring, Django, REST APIs
+
+### Databases
+- SQL, MySQL, PostgreSQL, MongoDB, Redis, Oracle
+
+### DevOps & Cloud
+- AWS, Docker, Kubernetes, Jenkins, Terraform
+
+### Testing
+- Unit testing, Integration testing, JUnit, Selenium, Cypress
+
+### Content Writing & Marketing
+- Content writing, SEO, Digital marketing, Social media, Analytics
+
+## Match Percentage Calculation
+
+The system calculates match percentages using:
+
+1. **Skill Matching**: Direct skill comparison between resume and job requirements
+2. **Category Weighting**: Different skill categories have different weights
+3. **Missing Skills Penalty**: Penalties for missing required skills
+4. **Minimum Threshold**: Jobs with <30% match are set to 0%
+
+### Category Weights:
+- Programming Languages: 1.5x
+- Frontend/Backend: 1.3x
+- Databases: 1.2x
+- DevOps: 1.1x
+- Content Writing: 1.5x
+- Digital Marketing: 1.4x
+- Social Media: 1.3x
+- Analytics: 1.2x
+
+## Usage Examples
+
+### Frontend Integration (JavaScript)
+```javascript
+// Analyze resume against all jobs
+const formData = new FormData();
+formData.append('file', resumeFile);
+formData.append('jobSeekerId', 'job-seeker-uuid');
+
+const response = await fetch('/api/resume-analysis/analyze', {
+  method: 'POST',
+  body: formData
+});
+
+const analysis = await response.json();
+console.log('Top match:', analysis.jobMatches[0]);
+console.log('Average match:', analysis.averageMatchPercentage);
+```
+
+### Get Top Matches for Resume Text
+```javascript
+const response = await fetch('/api/resume-analysis/top-matches', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/x-www-form-urlencoded',
+  },
+  body: new URLSearchParams({
+    resumeText: 'Experienced Java developer with Spring Boot...',
+    limit: '5'
+  })
+});
+
+const topMatches = await response.json();
+```
+
+### Extract Skills Only
+```javascript
+const response = await fetch('/api/resume-analysis/skills?resumeText=' + 
+  encodeURIComponent(resumeText));
+const skills = await response.json();
+console.log('Extracted skills:', skills.extractedSkills);
+``` 

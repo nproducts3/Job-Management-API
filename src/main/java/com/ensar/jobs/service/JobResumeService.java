@@ -1,10 +1,14 @@
 package com.ensar.jobs.service;
 
 import com.ensar.jobs.dto.JobResumeDTO;
+import com.ensar.jobs.dto.JobMatchResultDTO;
+import com.ensar.jobs.dto.ResumeAnalysisDTO;
 import com.ensar.jobs.entity.GoogleJob;
 import com.ensar.jobs.entity.JobResume;
+import com.ensar.jobs.entity.JobSeeker;
 import com.ensar.jobs.repository.GoogleJobRepository;
 import com.ensar.jobs.repository.JobResumeRepository;
+import com.ensar.jobs.repository.JobSeekerRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +20,7 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.persistence.EntityNotFoundException;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -34,6 +39,7 @@ import java.util.stream.Collectors;
 public class JobResumeService {
     private final GoogleJobRepository googleJobRepository;
     private final JobResumeRepository jobResumeRepository;
+    private final JobSeekerRepository jobSeekerRepository;
     private final ObjectMapper objectMapper;
     private final String UPLOAD_DIR = "uploads/resumes";
 
@@ -264,7 +270,7 @@ public class JobResumeService {
         return skills;
     }
 
-    private Set<String> extractSkillsFromText(String text) {
+    public Set<String> extractSkillsFromText(String text) {
         Set<String> foundSkills = new HashSet<>();
         String normalizedText = text.toLowerCase();
         
@@ -343,7 +349,7 @@ public class JobResumeService {
         }
     }
 
-    private Map<String, Set<String>> extractSkillsByCategory(String text) {
+    public Map<String, Set<String>> extractSkillsByCategory(String text) {
         Map<String, Set<String>> skillsByCategory = new HashMap<>();
         
 
@@ -573,5 +579,186 @@ public class JobResumeService {
             jobResumeRepository.delete(existingResume);
             log.info("Deleted resume record from database for job: {}", googleJobId);
         }
+    }
+
+    // Add this method for mapping DTO to entity
+    private JobResume mapToEntity(JobResumeDTO dto, JobSeeker jobSeeker) {
+        JobResume entity = new JobResume();
+        entity.setId(dto.getId());
+        entity.setGooglejobId(dto.getGoogleJobId());
+        entity.setResumeFile(dto.getResumeFile());
+        entity.setResumeText(dto.getResumeText());
+        entity.setMatchPercentage(dto.getMatchPercentage());
+        entity.setUploadedAt(dto.getUploadedAt());
+        entity.setJobSeeker(jobSeeker);
+        return entity;
+    }
+
+    // Add this method for mapping entity to DTO
+    private JobResumeDTO mapToDTO(JobResume entity) {
+        JobResumeDTO dto = new JobResumeDTO();
+        dto.setId(entity.getId());
+        dto.setGoogleJobId(entity.getGooglejobId());
+        dto.setResumeFile(entity.getResumeFile());
+        dto.setResumeText(entity.getResumeText());
+        dto.setMatchPercentage(entity.getMatchPercentage());
+        dto.setUploadedAt(entity.getUploadedAt());
+        dto.setJobSeekerId(entity.getJobSeeker() != null ? entity.getJobSeeker().getId() : null);
+        return dto;
+    }
+
+    // Example for create method
+    public JobResumeDTO createJobResume(JobResumeDTO dto) {
+        if (dto.getJobSeekerId() == null) {
+            throw new IllegalArgumentException("jobSeekerId is required");
+        }
+        JobSeeker jobSeeker = jobSeekerRepository.findById(dto.getJobSeekerId())
+            .orElseThrow(() -> new EntityNotFoundException("Job seeker not found with id: " + dto.getJobSeekerId()));
+        JobResume entity = mapToEntity(dto, jobSeeker);
+        entity = jobResumeRepository.save(entity);
+        return mapToDTO(entity);
+    }
+
+    /**
+     * Analyze resume against all Google Jobs and return comprehensive match results
+     */
+    public ResumeAnalysisDTO analyzeResumeAgainstAllJobs(MultipartFile file, String jobSeekerId) throws IOException {
+        // Validate job seeker
+        JobSeeker jobSeeker = jobSeekerRepository.findById(jobSeekerId)
+            .orElseThrow(() -> new EntityNotFoundException("Job seeker not found with id: " + jobSeekerId));
+
+        // Extract text from resume
+        String resumeText = extractTextFromFile(file, saveFileTemporarily(file));
+        
+        // Extract skills from resume
+        Set<String> resumeSkills = extractSkillsFromText(resumeText);
+        Map<String, Set<String>> skillsByCategory = extractSkillsByCategory(resumeText);
+        
+        // Get all Google Jobs
+        List<GoogleJob> allJobs = googleJobRepository.findAll();
+        
+        // Analyze against each job
+        List<JobMatchResultDTO> jobMatches = new ArrayList<>();
+        BigDecimal totalMatchPercentage = BigDecimal.ZERO;
+        int highMatchCount = 0, mediumMatchCount = 0, lowMatchCount = 0;
+        
+        for (GoogleJob job : allJobs) {
+            JobMatchResultDTO matchResult = analyzeJobMatch(job, resumeSkills, skillsByCategory);
+            jobMatches.add(matchResult);
+            
+            // Update statistics
+            totalMatchPercentage = totalMatchPercentage.add(matchResult.getMatchPercentage());
+            
+            if (matchResult.getMatchPercentage().compareTo(BigDecimal.valueOf(80)) >= 0) {
+                highMatchCount++;
+            } else if (matchResult.getMatchPercentage().compareTo(BigDecimal.valueOf(50)) >= 0) {
+                mediumMatchCount++;
+            } else {
+                lowMatchCount++;
+            }
+        }
+        
+        // Sort by match percentage (highest first)
+        jobMatches.sort((a, b) -> b.getMatchPercentage().compareTo(a.getMatchPercentage()));
+        
+        // Calculate average match percentage
+        BigDecimal averageMatchPercentage = allJobs.isEmpty() ? BigDecimal.ZERO :
+            totalMatchPercentage.divide(BigDecimal.valueOf(allJobs.size()), 2, RoundingMode.HALF_UP);
+        
+        // Convert skills to lists for DTO
+        List<String> extractedSkillsList = new ArrayList<>(resumeSkills);
+        Map<String, List<String>> skillsByCategoryList = skillsByCategory.entrySet().stream()
+            .collect(Collectors.toMap(
+                Map.Entry::getKey,
+                entry -> new ArrayList<>(entry.getValue())
+            ));
+        
+        return ResumeAnalysisDTO.builder()
+            .resumeId(UUID.randomUUID().toString())
+            .resumeFile(file.getOriginalFilename())
+            .resumeText(resumeText)
+            .uploadedAt(LocalDateTime.now())
+            .jobSeekerId(jobSeekerId)
+            .jobSeekerName(jobSeeker.getFirstName() + " " + jobSeeker.getLastName())
+            .extractedSkills(extractedSkillsList)
+            .skillsByCategory(skillsByCategoryList)
+            .jobMatches(jobMatches)
+            .averageMatchPercentage(averageMatchPercentage)
+            .totalJobsAnalyzed(allJobs.size())
+            .highMatchJobs(highMatchCount)
+            .mediumMatchJobs(mediumMatchCount)
+            .lowMatchJobs(lowMatchCount)
+            .build();
+    }
+    
+    /**
+     * Analyze a single job match
+     */
+    private JobMatchResultDTO analyzeJobMatch(GoogleJob job, Set<String> resumeSkills, Map<String, Set<String>> skillsByCategory) {
+        // Extract job skills
+        Set<String> jobSkills = extractJobSkills(job);
+        
+        // Calculate match
+        SkillMatchResult matchResult = calculateDetailedSkillMatch(jobSkills, resumeSkills, skillsByCategory);
+        
+        // Convert sets to lists for DTO
+        List<String> matchedSkillsList = new ArrayList<>(matchResult.getMatchedSkills());
+        List<String> missingSkillsList = new ArrayList<>(matchResult.getMissingSkills());
+        
+        return JobMatchResultDTO.builder()
+            .jobId(job.getId())
+            .jobTitle(job.getTitle())
+            .companyName(job.getCompanyName())
+            .location(job.getLocation())
+            .matchPercentage(matchResult.getMatchPercentage())
+            .matchedSkills(matchedSkillsList)
+            .missingSkills(missingSkillsList)
+            .categoryScores(matchResult.getCategoryScores())
+            .jobDescription(job.getDescription())
+            .qualifications(job.getQualifications())
+            .responsibilities(job.getResponsibilities())
+            .benefits(job.getBenefits())
+            .applyLink(job.getApplyLinks())
+            .salary(job.getSalary())
+            .scheduleType(job.getScheduleType())
+            .build();
+    }
+    
+    /**
+     * Save file temporarily for processing
+     */
+    private java.io.File saveFileTemporarily(MultipartFile file) throws IOException {
+        Path uploadPath = Paths.get(UPLOAD_DIR);
+        Files.createDirectories(uploadPath);
+        
+        String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
+        Path filePath = uploadPath.resolve(filename);
+        Files.copy(file.getInputStream(), filePath);
+        
+        return filePath.toFile();
+    }
+    
+    /**
+     * Get top matching jobs for a resume (without uploading)
+     */
+    public List<JobMatchResultDTO> getTopMatchingJobs(String resumeText, int limit) {
+        // Extract skills from resume text
+        Set<String> resumeSkills = extractSkillsFromText(resumeText);
+        Map<String, Set<String>> skillsByCategory = extractSkillsByCategory(resumeText);
+        
+        // Get all jobs and calculate matches
+        List<GoogleJob> allJobs = googleJobRepository.findAll();
+        List<JobMatchResultDTO> jobMatches = new ArrayList<>();
+        
+        for (GoogleJob job : allJobs) {
+            JobMatchResultDTO matchResult = analyzeJobMatch(job, resumeSkills, skillsByCategory);
+            jobMatches.add(matchResult);
+        }
+        
+        // Sort by match percentage and return top results
+        return jobMatches.stream()
+            .sorted((a, b) -> b.getMatchPercentage().compareTo(a.getMatchPercentage()))
+            .limit(limit)
+            .collect(Collectors.toList());
     }
 }

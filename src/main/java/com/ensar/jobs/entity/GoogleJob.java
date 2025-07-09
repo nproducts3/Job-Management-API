@@ -22,8 +22,9 @@ public class GoogleJob extends BaseEntity {
     @Column(length = 36)
     private String id;
 
-    @Column(name = "job_id", unique = true, nullable = false)
-    private UUID jobId;
+    @Column(name = "job_id", unique = true, nullable = false, length = 255)
+    private String jobId;
+    // private String jobId;
 
     @Column(nullable = false)
     private String title;
@@ -64,9 +65,11 @@ public class GoogleJob extends BaseEntity {
 
   
 
-    @Column(name = "job_title_id", length = 36)
-    private String jobTitleId;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "job_title_id")
+    private JobTitle jobTitle;
 
-    @Column(name = "city_id", length = 36)
-    private String cityId;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "city_id")
+    private City city;
 } 

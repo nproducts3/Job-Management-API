@@ -8,6 +8,6 @@ import java.util.UUID;
 
 @Repository
 public interface GoogleJobRepository extends JpaRepository<GoogleJob, String> {
-    Optional<GoogleJob> findByJobId(UUID jobId);
+    Optional<GoogleJob> findByJobId(String jobId);
     // Add custom queries if needed
 } 

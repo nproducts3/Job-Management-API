@@ -2,7 +2,11 @@ package com.ensar.jobs.service;
 
 import com.ensar.jobs.dto.GoogleJobDTO;
 import com.ensar.jobs.entity.GoogleJob;
+import com.ensar.jobs.entity.JobTitle;
+import com.ensar.jobs.entity.City;
 import com.ensar.jobs.repository.GoogleJobRepository;
+import com.ensar.jobs.repository.JobTitleRepository;
+import com.ensar.jobs.repository.CityRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -19,6 +23,8 @@ import java.util.UUID;
 public class GoogleJobService {
 
     private final GoogleJobRepository googleJobRepository;
+    private final JobTitleRepository jobTitleRepository;
+    private final CityRepository cityRepository;
 
     public GoogleJobDTO createGoogleJob(GoogleJobDTO googleJobDTO) {
         GoogleJob googleJob = mapToEntity(googleJobDTO);
@@ -43,7 +49,7 @@ public class GoogleJobService {
         GoogleJobDTO dto = mapToDTO(googleJob);
         dto.setJobId(googleJob.getJobId());
         return dto;
-    }
+    }       
 
     public void deleteGoogleJob(String id) {
         if (!googleJobRepository.existsById(id)) {
@@ -69,7 +75,7 @@ public class GoogleJobService {
     private GoogleJob mapToEntity(GoogleJobDTO dto) {
         GoogleJob entity = new GoogleJob();
         entity.setId(dto.getId());
-        entity.setJobId(dto.getJobId());
+        entity.setJobId(dto.getJobId() != null ? dto.getJobId() : java.util.UUID.randomUUID().toString());
         entity.setTitle(dto.getTitle());
         entity.setCompanyName(dto.getCompanyName());
         entity.setLocation(dto.getLocation());
@@ -83,6 +89,17 @@ public class GoogleJobService {
         entity.setResponsibilities(dto.getResponsibilities());
         entity.setBenefits(dto.getBenefits());
         entity.setApplyLinks(dto.getApplyLinks());
+        // Set JobTitle and City from DTO
+        if (dto.getJobTitle() != null && dto.getJobTitle().getId() != null) {
+            entity.setJobTitle(jobTitleRepository.findById(dto.getJobTitle().getId()).orElse(null));
+        } else {
+            entity.setJobTitle(null);
+        }
+        if (dto.getCity() != null && dto.getCity().getId() != null) {
+            entity.setCity(cityRepository.findById(dto.getCity().getId()).orElse(null));
+        } else {
+            entity.setCity(null);
+        }
         return entity;
     }
 
@@ -109,6 +126,9 @@ public class GoogleJobService {
         dto.setApplyLinks(entity.getApplyLinks());
         dto.setCreatedDateTime(entity.getCreatedDateTime() != null ? entity.getCreatedDateTime().toString() : null);
         dto.setLastUpdatedDateTime(entity.getLastUpdatedDateTime() != null ? entity.getLastUpdatedDateTime().toString() : null);
+        // Set JobTitle and City
+        dto.setJobTitle(entity.getJobTitle());
+        dto.setCity(entity.getCity());
         return dto;
     }
 

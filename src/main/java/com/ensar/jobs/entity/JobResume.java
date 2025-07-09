@@ -40,6 +40,10 @@ public class JobResume extends BaseEntity {
     @Column(name = "uploaded_at")
     private LocalDateTime uploadedAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "job_seeker_id", nullable = false)
+    private JobSeeker jobSeeker;
+
     @PrePersist
     protected void onCreate() {
         if (uploadedAt == null) {

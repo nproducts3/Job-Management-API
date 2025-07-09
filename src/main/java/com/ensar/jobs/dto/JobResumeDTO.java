@@ -31,4 +31,5 @@ public class JobResumeDTO {
     private String companyName;
     private String matchedSkills;
     private String missingSkills;
+    private String jobSeekerId;
 } 

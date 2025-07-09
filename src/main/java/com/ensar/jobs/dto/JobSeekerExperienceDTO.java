@@ -2,6 +2,8 @@ package com.ensar.jobs.dto;
 
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class JobSeekerExperienceDTO {
     private String id;
@@ -10,5 +12,5 @@ public class JobSeekerExperienceDTO {
     private String companyName;
     private String startDate;
     private String endDate;
-    private String responsibilities; // JSON string
+    private List<String> responsibilities;
 } 

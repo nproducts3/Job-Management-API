@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 
 @CrossOrigin(origins = "*")
 @RestController
@@ -49,10 +52,28 @@ public class UserController {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
+    @GetMapping("/paged")
+    @Operation(summary = "Get paginated users", description = "Retrieves a paginated list of users")
+    public ResponseEntity<Page<UserDTO>> getPagedUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        return ResponseEntity.ok(userService.getPagedUsers(pageable));
+    }
+
     @GetMapping("/jobseekers")
     @Operation(summary = "Get all jobseeker users", description = "Retrieves a list of all users with the role of Jobseeker")
     public ResponseEntity<List<UserDTO>> getAllJobSeekerUsers() {
         return ResponseEntity.ok(userService.getAllJobSeekerUsers());
+    }
+
+    @GetMapping("/jobseekers/paged")
+    @Operation(summary = "Get paginated jobseeker users", description = "Retrieves a paginated list of users with the role of Jobseeker")
+    public ResponseEntity<Page<UserDTO>> getPagedJobSeekerUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        return ResponseEntity.ok(userService.getPagedJobSeekerUsers(pageable));
     }
 
     @DeleteMapping("/{id}")

@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface JobResumeRepository extends JpaRepository<JobResume, String> {
     List<JobResume> findByGooglejobId(UUID googlejobId);
+    List<JobResume> findByJobSeeker_Id(String jobSeekerId);
 } 

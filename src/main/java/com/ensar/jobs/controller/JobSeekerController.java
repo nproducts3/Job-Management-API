@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import org.springframework.security.core.Authentication;
 
 @RestController
 @RequestMapping("/api/job-seekers")
@@ -18,7 +19,10 @@ public class JobSeekerController {
 
     @PostMapping
     @Operation(summary = "Create a new job seeker")
-    public ResponseEntity<JobSeekerDTO> create(@RequestBody JobSeekerDTO dto) {
+    public ResponseEntity<JobSeekerDTO> create(@RequestBody JobSeekerDTO dto, Authentication authentication) {
+        // Always use the logged-in user's id
+        String userId = authentication.getName();
+        dto.setUserId(userId);
         return ResponseEntity.ok(jobSeekerService.createJobSeeker(dto));
     }
 

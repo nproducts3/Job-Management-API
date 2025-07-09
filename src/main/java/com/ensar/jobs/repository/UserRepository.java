@@ -6,6 +6,8 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, String> {
@@ -19,4 +21,7 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     @Query("SELECT u FROM User u JOIN u.role r WHERE r.roleName = :roleName")
     java.util.List<User> findAllByRoleName(@Param("roleName") String roleName);
+
+    @Query("SELECT u FROM User u JOIN u.role r WHERE r.roleName = :roleName")
+    org.springframework.data.domain.Page<User> findAllByRoleName(@Param("roleName") String roleName, org.springframework.data.domain.Pageable pageable);
 } 
