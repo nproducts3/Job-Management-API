@@ -19,6 +19,10 @@ import java.util.Set;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.stream.Collectors;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
 
 @RestController
 @RequestMapping("/api/resume-analysis")
@@ -75,5 +79,32 @@ public class JobResumeController {
             )));
         
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/uploaded-files")
+    @Operation(summary = "List uploaded resume files", description = "Get information about all files in the uploads/resumes directory.")
+    public ResponseEntity<List<Map<String, Object>>> listUploadedFiles() {
+        List<Map<String, Object>> filesInfo = new ArrayList<>();
+        try {
+            Path uploadDir = Paths.get("uploads/resumes");
+            if (Files.exists(uploadDir)) {
+                Files.list(uploadDir).forEach(path -> {
+                    try {
+                        BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
+                        Map<String, Object> fileInfo = new HashMap<>();
+                        fileInfo.put("fileName", path.getFileName().toString());
+                        fileInfo.put("size", attrs.size());
+                        fileInfo.put("createdTime", attrs.creationTime().toString());
+                        fileInfo.put("lastModifiedTime", attrs.lastModifiedTime().toString());
+                        filesInfo.add(fileInfo);
+                    } catch (Exception e) {
+                        // skip file if error
+                    }
+                });
+            }
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+        return ResponseEntity.ok(filesInfo);
     }
 } 

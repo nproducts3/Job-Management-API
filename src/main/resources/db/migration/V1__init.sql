@@ -110,18 +110,7 @@ CREATE TABLE `google_jobs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 
 
--- 9. Job Resumes Table
-CREATE TABLE `job_resumes` (
-    `id` CHAR(36) PRIMARY KEY,
-    `googlejob_id` VARCHAR(255) NOT NULL,
-    `resume_file` VARCHAR(255) NOT NULL,
-    `resume_text` TEXT,
-    `match_percentage` DECIMAL(5,2) DEFAULT 0.00,
-    `uploaded_at` DATETIME,
-    created_date_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_updated_date_time TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT `fk_job_resume_job` FOREIGN KEY (`googlejob_id`) REFERENCES `google_jobs` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
 
 -- 10. Job Seekers Table
 CREATE TABLE job_seekers (
@@ -136,6 +125,21 @@ CREATE TABLE job_seekers (
     created_date_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_updated_date_time TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_job_seeker_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+-- 9. Job Resumes Table
+CREATE TABLE `job_resumes` (
+    `id` CHAR(36) PRIMARY KEY,
+    `googlejob_id` VARCHAR(255) NOT NULL,
+    `job_seeker_id` CHAR(36) NULL,
+    `resume_file` VARCHAR(255) NOT NULL,
+    `resume_text` TEXT,
+    `match_percentage` DECIMAL(5,2) DEFAULT 0.00,
+    `uploaded_at` DATETIME,
+    created_date_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_updated_date_time TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT `fk_job_resume_job` FOREIGN KEY (`googlejob_id`) REFERENCES `google_jobs` (`id`),
+    CONSTRAINT `fk_job_resume_jobseeker` FOREIGN KEY (`job_seeker_id`) REFERENCES `job_seekers`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 
 -- 11. Job Seeker Skills Table

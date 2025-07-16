@@ -28,4 +28,5 @@ public class JobMatchResultDTO {
     private String applyLink;
     private String salary;
     private String scheduleType;
+    private String aiSuggestions;
 } 

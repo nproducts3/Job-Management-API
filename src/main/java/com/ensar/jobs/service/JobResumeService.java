@@ -9,8 +9,6 @@ import com.ensar.jobs.entity.JobSeeker;
 import com.ensar.jobs.repository.GoogleJobRepository;
 import com.ensar.jobs.repository.JobResumeRepository;
 import com.ensar.jobs.repository.JobSeekerRepository;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -19,6 +17,8 @@ import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.*;
 
 import jakarta.persistence.EntityNotFoundException;
 import java.io.IOException;
@@ -28,10 +28,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 @RequiredArgsConstructor
@@ -40,8 +43,8 @@ public class JobResumeService {
     private final GoogleJobRepository googleJobRepository;
     private final JobResumeRepository jobResumeRepository;
     private final JobSeekerRepository jobSeekerRepository;
-    private final ObjectMapper objectMapper;
     private final String UPLOAD_DIR = "uploads/resumes";
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // Enhanced technical skill variations with categories and synonyms
     private static final Map<String, Set<String>> TECHNICAL_SKILL_VARIATIONS = new HashMap<>();
@@ -165,7 +168,26 @@ public class JobResumeService {
             Path uploadPath = Paths.get(UPLOAD_DIR);
             Files.createDirectories(uploadPath);
 
-            String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
+            // Fetch GoogleJob for job title and company name
+            GoogleJob googleJob = googleJobRepository.findById(googleJobId.toString())
+                .orElse(null);
+            String jobTitle = googleJob != null ? googleJob.getTitle() : null;
+            String companyName = googleJob != null ? googleJob.getCompanyName() : null;
+
+            // Get job seeker for file naming
+            JobSeeker jobSeeker = null;
+            if (googleJob != null && googleJob.getId() != null) {
+                // Try to find job seeker by job id (if available in your logic)
+                // Otherwise, you may need to pass jobSeekerId as a parameter
+            }
+            // If jobSeeker is not found above, try to get from JobResumeDTO or other logic
+            // For now, let's use the jobSeekerRepository to get a sample user (update as needed)
+            // You may want to pass jobSeekerId to this method for accuracy
+            // Example fallback:
+            jobSeeker = jobSeekerRepository.findAll().stream().findFirst().orElse(null);
+            String safeFirstName = jobSeeker != null ? jobSeeker.getFirstName().replaceAll("[^a-zA-Z0-9]", "_") : "user";
+            String safeLastName = jobSeeker != null ? jobSeeker.getLastName().replaceAll("[^a-zA-Z0-9]", "_") : "unknown";
+            String filename = safeFirstName + "_" + safeLastName + "_" + file.getOriginalFilename();
             Path filePath = uploadPath.resolve(filename);
             Files.copy(file.getInputStream(), filePath);
             log.info("File saved successfully: {}", filename);
@@ -173,12 +195,6 @@ public class JobResumeService {
             // Extract text from the resume file
             String resumeText = extractTextFromFile(file, filePath.toFile());
             log.info("Successfully extracted text from resume, length: {} characters", resumeText.length());
-
-            // Fetch GoogleJob for job title and company name
-            GoogleJob googleJob = googleJobRepository.findById(googleJobId.toString())
-                .orElse(null);
-            String jobTitle = googleJob != null ? googleJob.getTitle() : null;
-            String companyName = googleJob != null ? googleJob.getCompanyName() : null;
 
             // Extract job skills from GoogleJob if available
             Set<String> jobSkills = googleJob != null ? extractJobSkills(googleJob) : new HashSet<>();
@@ -619,6 +635,65 @@ public class JobResumeService {
         return mapToDTO(entity);
     }
 
+    private static final String AI_ANALYSIS_URL = "http://localhost:8000/analyze";
+
+    private List<JobMatchResultDTO> callAiResumeAnalysis(String resumeText, List<GoogleJob> allJobs) {
+        RestTemplate restTemplate = new RestTemplate();
+        DateTimeFormatter isoFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+        // Build job list for AI service
+        List<Map<String, Object>> jobs = new ArrayList<>();
+        for (GoogleJob job : allJobs) {
+            Map<String, Object> jobMap = new HashMap<>();
+            jobMap.put("id", job.getId());
+            jobMap.put("jobId", job.getJobId());
+            jobMap.put("title", job.getTitle());
+            jobMap.put("companyName", job.getCompanyName());
+            jobMap.put("location", job.getLocation());
+            jobMap.put("qualifications", job.getQualifications());
+            jobMap.put("description", job.getDescription());
+            jobMap.put("responsibilities", job.getResponsibilities() != null ? job.getResponsibilities() : new ArrayList<>());
+            jobMap.put("benefits", job.getBenefits() != null ? job.getBenefits() : new ArrayList<>());
+            jobMap.put("salary", job.getSalary());
+            jobMap.put("scheduleType", job.getScheduleType());
+            jobMap.put("shareLink", job.getShareLink());
+            jobMap.put("postedAt", job.getPostedAt());
+            jobMap.put("applyLinks", job.getApplyLinks());
+            jobMap.put("createdDateTime", job.getCreatedDateTime() != null ? job.getCreatedDateTime().format(isoFormatter) : null);
+            jobMap.put("lastUpdatedDateTime", job.getLastUpdatedDateTime() != null ? job.getLastUpdatedDateTime().format(isoFormatter) : null);
+            jobs.add(jobMap);
+        }
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("resume_text", resumeText);
+        requestBody.put("jobs", jobs);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+        ResponseEntity<Map> response = restTemplate.postForEntity(AI_ANALYSIS_URL, request, Map.class);
+        List<Map<String, Object>> topMatches = (List<Map<String, Object>>) response.getBody().get("top_matches");
+        List<JobMatchResultDTO> result = new ArrayList<>();
+        for (Map<String, Object> match : topMatches) {
+            JobMatchResultDTO dto = new JobMatchResultDTO();
+            dto.setJobId((String) match.get("job_id"));
+            dto.setJobTitle((String) match.get("job_title"));
+            dto.setCompanyName((String) match.get("company"));
+            dto.setMatchPercentage(new java.math.BigDecimal(match.get("match_percentage").toString()));
+            dto.setMatchedSkills(objectMapper.convertValue(match.get("matched_skills"), new TypeReference<List<String>>(){}));
+            dto.setMissingSkills(objectMapper.convertValue(match.get("missing_skills"), new TypeReference<List<String>>(){}));
+            dto.setLocation((String) match.get("location"));
+            dto.setJobDescription((String) match.get("description"));
+            dto.setQualifications((String) match.get("qualifications"));
+            dto.setResponsibilities(objectMapper.convertValue(match.get("responsibilities"), new TypeReference<List<String>>(){}));
+            dto.setBenefits(objectMapper.convertValue(match.get("benefits"), new TypeReference<List<String>>(){}));
+            dto.setApplyLink((String) match.get("applyLink"));
+            dto.setSalary((String) match.get("salary"));
+            dto.setScheduleType((String) match.get("scheduleType"));
+            dto.setCategoryScores(objectMapper.convertValue(match.get("categoryScores"), new TypeReference<Map<String, BigDecimal>>(){}));
+            dto.setAiSuggestions((String) match.get("ai_suggestions"));
+            result.add(dto);
+        }
+        return result;
+    }
+
     /**
      * Analyze resume against all Google Jobs and return comprehensive match results
      */
@@ -630,40 +705,44 @@ public class JobResumeService {
         // Extract text from resume
         String resumeText = extractTextFromFile(file, saveFileTemporarily(file));
         
+        // Save the resume file to disk only (do not save JobResume entity)
+        String originalName = file.getOriginalFilename();
+        String safeFirstName = jobSeeker.getFirstName().replaceAll("[^a-zA-Z0-9]", "_");
+        String safeLastName = jobSeeker.getLastName().replaceAll("[^a-zA-Z0-9]", "_");
+        String safeTitle = (jobSeeker.getPreferredJobTypes() != null && !jobSeeker.getPreferredJobTypes().isEmpty()) ? jobSeeker.getPreferredJobTypes().replaceAll("[^a-zA-Z0-9]", "_") : null;
+        String filename = safeFirstName + "_" + safeLastName;
+        if (safeTitle != null) {
+            filename += "_" + safeTitle;
+        }
+        filename += "_" + originalName;
+        Path uploadPath = Paths.get(UPLOAD_DIR);
+        Files.createDirectories(uploadPath);
+        Path filePath = uploadPath.resolve(filename);
+        // Check and delete existing file if present
+        if (Files.exists(filePath)) {
+            Files.delete(filePath);
+        }
+        Files.copy(file.getInputStream(), filePath);
+        // No JobResume entity is created or saved
+        String generatedResumeId = UUID.randomUUID().toString();
+        LocalDateTime uploadedAt = LocalDateTime.now();
+        
         // Extract skills from resume
         Set<String> resumeSkills = extractSkillsFromText(resumeText);
         Map<String, Set<String>> skillsByCategory = extractSkillsByCategory(resumeText);
         
         // Get all Google Jobs
         List<GoogleJob> allJobs = googleJobRepository.findAll();
-        
-        // Analyze against each job
-        List<JobMatchResultDTO> jobMatches = new ArrayList<>();
-        BigDecimal totalMatchPercentage = BigDecimal.ZERO;
-        int highMatchCount = 0, mediumMatchCount = 0, lowMatchCount = 0;
-        
-        for (GoogleJob job : allJobs) {
-            JobMatchResultDTO matchResult = analyzeJobMatch(job, resumeSkills, skillsByCategory);
-            jobMatches.add(matchResult);
-            
-            // Update statistics
-            totalMatchPercentage = totalMatchPercentage.add(matchResult.getMatchPercentage());
-            
-            if (matchResult.getMatchPercentage().compareTo(BigDecimal.valueOf(80)) >= 0) {
-                highMatchCount++;
-            } else if (matchResult.getMatchPercentage().compareTo(BigDecimal.valueOf(50)) >= 0) {
-                mediumMatchCount++;
-            } else {
-                lowMatchCount++;
-            }
-        }
+        // Call AI service for smart analysis
+        List<JobMatchResultDTO> aiMatches = callAiResumeAnalysis(resumeText, allJobs);
         
         // Sort by match percentage (highest first)
-        jobMatches.sort((a, b) -> b.getMatchPercentage().compareTo(a.getMatchPercentage()));
+        aiMatches.sort((a, b) -> b.getMatchPercentage().compareTo(a.getMatchPercentage()));
         
         // Calculate average match percentage
         BigDecimal averageMatchPercentage = allJobs.isEmpty() ? BigDecimal.ZERO :
-            totalMatchPercentage.divide(BigDecimal.valueOf(allJobs.size()), 2, RoundingMode.HALF_UP);
+            aiMatches.stream().map(JobMatchResultDTO::getMatchPercentage).reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(BigDecimal.valueOf(allJobs.size()), 2, RoundingMode.HALF_UP);
         
         // Convert skills to lists for DTO
         List<String> extractedSkillsList = new ArrayList<>(resumeSkills);
@@ -674,20 +753,20 @@ public class JobResumeService {
             ));
         
         return ResumeAnalysisDTO.builder()
-            .resumeId(UUID.randomUUID().toString())
-            .resumeFile(file.getOriginalFilename())
+            .resumeId(generatedResumeId)
+            .resumeFile(filename)
             .resumeText(resumeText)
-            .uploadedAt(LocalDateTime.now())
+            .uploadedAt(uploadedAt)
             .jobSeekerId(jobSeekerId)
             .jobSeekerName(jobSeeker.getFirstName() + " " + jobSeeker.getLastName())
             .extractedSkills(extractedSkillsList)
             .skillsByCategory(skillsByCategoryList)
-            .jobMatches(jobMatches)
+            .jobMatches(aiMatches)
             .averageMatchPercentage(averageMatchPercentage)
             .totalJobsAnalyzed(allJobs.size())
-            .highMatchJobs(highMatchCount)
-            .mediumMatchJobs(mediumMatchCount)
-            .lowMatchJobs(lowMatchCount)
+            .highMatchJobs(0) // AI analysis doesn't provide this directly, so set to 0
+            .mediumMatchJobs(0) // AI analysis doesn't provide this directly, so set to 0
+            .lowMatchJobs(0) // AI analysis doesn't provide this directly, so set to 0
             .build();
     }
     
