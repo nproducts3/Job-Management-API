@@ -191,3 +191,7 @@ CREATE TABLE job_seeker_certifications (
 
    ALTER TABLE google_jobs MODIFY responsibilities JSON;
    ALTER TABLE google_jobs MODIFY benefits JSON;
+ALTER TABLE job_resumes MODIFY resume_text LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Add ai_suggestions column for new DBs
+ALTER TABLE job_resumes ADD COLUMN ai_suggestions TEXT;

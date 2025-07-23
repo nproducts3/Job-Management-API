@@ -16,7 +16,7 @@ import java.util.UUID;
 public class JobResumeDTO {
     private String id;
     @NotNull(message = "Google Job ID is required")
-    private UUID googleJobId;
+    private String googleJobId;
     private String resumeFile;
     private String resumeText;
     
@@ -32,4 +32,5 @@ public class JobResumeDTO {
     private String matchedSkills;
     private String missingSkills;
     private String jobSeekerId;
+    private java.util.List<AiSuggestion> aiSuggestions;
 } 

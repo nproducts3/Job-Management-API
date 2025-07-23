@@ -65,6 +65,12 @@ public class JobSeekerService {
     }
 
     @Transactional(readOnly = true)
+    public JobSeeker getJobSeekerEntityById(String id) {
+        return jobSeekerRepository.findById(id)
+            .orElseThrow(() -> new EntityNotFoundException("Job seeker not found with id: " + id));
+    }
+
+    @Transactional(readOnly = true)
     public JobSeekerDTO getJobSeekerById(String id) {
         JobSeeker jobSeeker = jobSeekerRepository.findById(id)
             .orElseThrow(() -> new EntityNotFoundException("Job seeker not found with id: " + id));

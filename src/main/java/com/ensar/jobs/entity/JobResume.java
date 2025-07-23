@@ -20,13 +20,11 @@ import java.util.UUID;
 @EqualsAndHashCode(callSuper = true)
 public class JobResume extends BaseEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @UuidGenerator
     @Column(length = 36)
     private String id;
 
-    @Column(name = "googlejob_id", length = 255)
-    private UUID googlejobId;
+    @Column(name = "googlejob_id", length = 255, nullable = false)
+    private String googlejobId;
 
     @Column(name = "resume_file", length = 255)
     private String resumeFile;
@@ -39,6 +37,9 @@ public class JobResume extends BaseEntity {
 
     @Column(name = "uploaded_at")
     private LocalDateTime uploadedAt;
+
+    @Column(name = "ai_suggestions", columnDefinition = "TEXT")
+    private String aiSuggestions;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "job_seeker_id", nullable = false)

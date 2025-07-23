@@ -1,8 +1,11 @@
 package com.ensar.jobs.controller;
 
 import com.ensar.jobs.dto.JobMatchResultDTO;
+import com.ensar.jobs.dto.JobResumeDTO;
 import com.ensar.jobs.dto.ResumeAnalysisDTO;
 import com.ensar.jobs.service.JobResumeService;
+import com.ensar.jobs.service.JobSeekerService;
+import com.ensar.jobs.entity.JobSeeker;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,6 +26,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import lombok.Data;
+import lombok.Builder;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
+import java.util.UUID;
+
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
 
 @RestController
 @RequestMapping("/api/resume-analysis")
@@ -31,6 +45,19 @@ import java.nio.file.attribute.BasicFileAttributes;
 public class JobResumeController {
 
     private final JobResumeService jobResumeService;
+    private final JobSeekerService jobSeekerService;
+
+    @GetMapping("/resume-text-match")
+    @Operation(
+        summary = "Get resume text and match percentage by jobSeekerId and googleJobId",
+        description = "Returns the resume text and match percentage for the given jobSeekerId and googleJobId"
+    )
+    public ResponseEntity<JobResumeDTO> getResumeTextAndMatch(
+        @RequestParam String jobSeekerId,
+        @RequestParam String googleJobId
+    ) {
+        return ResponseEntity.ok(jobResumeService.getResumeTextAndMatchPercentage(jobSeekerId, googleJobId));
+    }
 
     @PostMapping(value = "/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Analyze resume against all jobs", 
@@ -52,9 +79,12 @@ public class JobResumeController {
             @Parameter(description = "Resume text content") 
             @RequestParam("resumeText") String resumeText,
             @Parameter(description = "Number of top matches to return (default: 10)") 
-            @RequestParam(value = "limit", defaultValue = "10") int limit) {
+            @RequestParam(value = "limit", defaultValue = "10") int limit,
+            @Parameter(description = "Job Seeker ID")
+            @RequestParam("jobSeekerId") String jobSeekerId) {
         
-        List<JobMatchResultDTO> topMatches = jobResumeService.getTopMatchingJobs(resumeText, limit);
+        JobSeeker jobSeeker = jobSeekerService.getJobSeekerEntityById(jobSeekerId);
+        List<JobMatchResultDTO> topMatches = jobResumeService.getTopMatchingJobs(resumeText, limit, jobSeeker);
         return ResponseEntity.ok(topMatches);
     }
 
@@ -106,5 +136,67 @@ public class JobResumeController {
             return ResponseEntity.internalServerError().build();
         }
         return ResponseEntity.ok(filesInfo);
+    }
+
+    @Data
+    public static class AutoImproveRequest {
+        private String action; // "analyze" or "apply_suggestion"
+        private String resumeText;
+        private UUID googleJobId; // was jobId
+        private String jobSeekerId;
+        private String suggestion; // optional, only for apply_suggestion
+    }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class AutoImproveResponse {
+        private String resumeText;
+        private BigDecimal matchPercentage;
+        private List<String> suggestions;
+        private boolean canDownload;
+    }
+
+    @PostMapping("/auto-improve")
+    @Operation(summary = "Analyze and iteratively improve resume for a job using AI suggestions",
+               description = "Analyze resume, return match %, suggestions, and allow applying suggestions until 100% match.")
+    public ResponseEntity<AutoImproveResponse> autoImproveResume(
+            @RequestBody AutoImproveRequest request) {
+        AutoImproveResponse response = jobResumeService.autoImproveResume(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/match-percentages/{resumeId}")
+    @Operation(summary = "Get match percentages for each job for a specific resume",
+               description = "Retrieve match percentages and job details for all jobs associated with a specific resume")
+    public ResponseEntity<List<JobMatchResultDTO>> getMatchPercentagesForResume(
+            @Parameter(description = "Resume ID") 
+            @PathVariable String resumeId) {
+        
+        List<JobMatchResultDTO> matchResults = jobResumeService.getMatchPercentagesForResume(resumeId);
+        return ResponseEntity.ok(matchResults);
+    }
+
+    @GetMapping("/job-seeker/{jobSeekerId}/match-percentages")
+    @Operation(summary = "Get match percentages for all resumes of a job seeker",
+               description = "Retrieve match percentages and job details for all resumes associated with a specific job seeker")
+    public ResponseEntity<List<JobMatchResultDTO>> getMatchPercentagesForJobSeeker(
+            @Parameter(description = "Job Seeker ID") 
+            @PathVariable String jobSeekerId) {
+        
+        List<JobMatchResultDTO> matchResults = jobResumeService.getMatchPercentagesForJobSeeker(jobSeekerId);
+        return ResponseEntity.ok(matchResults);
+    }
+
+    @GetMapping("/job/{googleJobId}/match-percentages")
+    @Operation(summary = "Get match percentages for all resumes for a specific job",
+               description = "Retrieve match percentages and resume details for all resumes associated with a specific job")
+    public ResponseEntity<List<JobMatchResultDTO>> getMatchPercentagesForJob(
+            @Parameter(description = "Google Job ID") 
+            @PathVariable String googleJobId) {
+        
+        List<JobMatchResultDTO> matchResults = jobResumeService.getMatchPercentagesForJob(googleJobId);
+        return ResponseEntity.ok(matchResults);
     }
 } 

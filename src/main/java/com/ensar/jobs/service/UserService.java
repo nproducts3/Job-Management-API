@@ -27,6 +27,7 @@ public class UserService {
     private final OrganizationRepository organizationRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final com.ensar.jobs.repository.JobSeekerRepository jobSeekerRepository;
 
     public UserDTO createUser(UserDTO userDTO) {
         if (userRepository.existsByEmail(userDTO.getEmail())) {
@@ -75,6 +76,18 @@ public class UserService {
 
         user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         user = userRepository.save(user);
+        // Ensure JobSeeker exists if user is ROLE_JOBSEEKER
+        if (user.getRole() != null && "ROLE_JOBSEEKER".equalsIgnoreCase(user.getRole().getRoleName())) {
+            com.ensar.jobs.entity.JobSeeker existing = jobSeekerRepository.findByUser_Id(user.getId());
+            if (existing == null) {
+                com.ensar.jobs.entity.JobSeeker jobSeeker = new com.ensar.jobs.entity.JobSeeker();
+                jobSeeker.setUser(user);
+                jobSeeker.setFirstName(user.getFirstName());
+                jobSeeker.setLastName(user.getLastName());
+                jobSeeker.setPhone(user.getPhoneNumber());
+                jobSeekerRepository.save(jobSeeker);
+            }
+        }
         return mapToDTO(user);
     }
 
@@ -112,6 +125,18 @@ public class UserService {
         }
         existingUser.setId(id); // Ensure ID is not overwritten
         existingUser = userRepository.save(existingUser);
+        // Ensure JobSeeker exists if user is ROLE_JOBSEEKER
+        if (existingUser.getRole() != null && "ROLE_JOBSEEKER".equalsIgnoreCase(existingUser.getRole().getRoleName())) {
+            com.ensar.jobs.entity.JobSeeker existing = jobSeekerRepository.findByUser_Id(existingUser.getId());
+            if (existing == null) {
+                com.ensar.jobs.entity.JobSeeker jobSeeker = new com.ensar.jobs.entity.JobSeeker();
+                jobSeeker.setUser(existingUser);
+                jobSeeker.setFirstName(existingUser.getFirstName());
+                jobSeeker.setLastName(existingUser.getLastName());
+                jobSeeker.setPhone(existingUser.getPhoneNumber());
+                jobSeekerRepository.save(jobSeeker);
+            }
+        }
         return mapToDTO(existingUser);
     }
 

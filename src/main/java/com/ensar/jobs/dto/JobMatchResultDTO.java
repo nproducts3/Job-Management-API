@@ -7,13 +7,14 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class JobMatchResultDTO {
-    private String jobId;
+    private UUID googleJobId;
     private String jobTitle;
     private String companyName;
     private String location;
@@ -29,4 +30,6 @@ public class JobMatchResultDTO {
     private String salary;
     private String scheduleType;
     private String aiSuggestions;
+    private String jobSeekerId;
+    private String jobSeekerName;
 } 
