@@ -25,12 +25,16 @@ import org.springframework.http.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import jakarta.persistence.EntityNotFoundException;
+
+import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.io.InputStream;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -46,6 +50,8 @@ import com.ensar.jobs.controller.JobResumeController.AutoImproveResponse;
 @RequiredArgsConstructor
 @Slf4j
 public class JobResumeService {
+    // Ensure proper JSON serialization/deserialization for aiSuggestions
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
     /**
      * Fetch resumeText and matchPercentage for a given jobSeekerId and googleJobId
      */
@@ -62,7 +68,6 @@ public class JobResumeService {
     private final JobResumeRepository jobResumeRepository;
     private final JobSeekerRepository jobSeekerRepository;
     private final String UPLOAD_DIR = "uploads/resumes";
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // Enhanced technical skill variations with categories and synonyms
     private static final Map<String, Set<String>> TECHNICAL_SKILL_VARIATIONS = new HashMap<>();
@@ -229,11 +234,15 @@ public class JobResumeService {
             String safeLastName = jobSeeker != null ? jobSeeker.getLastName().replaceAll("[^a-zA-Z0-9]", "_") : "unknown";
             String filename = safeFirstName + "_" + safeLastName + "_" + file.getOriginalFilename();
             Path filePath = uploadPath.resolve(filename);
-            Files.copy(file.getInputStream(), filePath);
-            log.info("File saved successfully: {}", filename);
-
+            try (InputStream in = file.getInputStream()) {
+                Files.copy(in, filePath, StandardCopyOption.REPLACE_EXISTING);
+                log.info("File saved successfully: {}", filePath);
+            } catch (IOException e) {
+                log.error("Failed to save uploaded file: {}", e.getMessage(), e);
+                throw new RuntimeException("Failed to save uploaded file", e);
+            }
             // Extract text from the resume file
-            String resumeText = extractTextFromFile(file, filePath.toFile());
+            String resumeText = extractTextFromFile(filePath.toFile());
             log.info("Successfully extracted text from resume, length: {} characters", resumeText.length());
 
             // Extract job skills from GoogleJob if available
@@ -284,24 +293,17 @@ public class JobResumeService {
         }
     }
 
-    private String extractTextFromFile(MultipartFile file, java.io.File savedFile) throws IOException {
-        String contentType = file.getContentType();
-        log.info("Processing file with content type: {}", contentType);
-        
-        if (contentType == null) {
-            throw new IllegalArgumentException("Content type is null");
-        }
+    private String extractTextFromFile(java.io.File savedFile) throws IOException {
+        String fileName = savedFile.getName().toLowerCase();
+        log.info("Processing file: {}", fileName);
 
         String extractedText;
-        switch (contentType) {
-            case "application/pdf":
-                extractedText = extractTextFromPDF(savedFile);
-                break;
-            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                extractedText = extractTextFromDOCX(savedFile);
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported file type: " + contentType);
+        if (fileName.endsWith(".pdf")) {
+            extractedText = extractTextFromPDF(savedFile);
+        } else if (fileName.endsWith(".docx")) {
+            extractedText = extractTextFromDOCX(savedFile);
+        } else {
+            throw new IllegalArgumentException("Unsupported file type: " + fileName);
         }
 
         if (extractedText == null || extractedText.trim().isEmpty()) {
@@ -609,6 +611,7 @@ public class JobResumeService {
             default -> BigDecimal.ONE;
         };
     }
+    
 
     private String extractTextFromPDF(java.io.File file) throws IOException {
         try (PDDocument document = PDDocument.load(file)) {
@@ -707,7 +710,21 @@ public class JobResumeService {
         dto.setUploadedAt(entity.getUploadedAt());
         dto.setJobSeekerId(entity.getJobSeeker() != null ? entity.getJobSeeker().getId() : null);
         try {
-            dto.setAiSuggestions(entity.getAiSuggestions() != null ? objectMapper.readValue(entity.getAiSuggestions(), new com.fasterxml.jackson.core.type.TypeReference<java.util.List<com.ensar.jobs.dto.AiSuggestion>>() {}) : null);
+            String aiSuggestionsJson = entity.getAiSuggestions();
+            if (aiSuggestionsJson != null && !aiSuggestionsJson.isEmpty()) {
+                // Try parsing as List<AiSuggestion> first
+                List<com.ensar.jobs.dto.AiSuggestion> aiSuggestionList = null;
+                try {
+                    aiSuggestionList = objectMapper.readValue(aiSuggestionsJson, new com.fasterxml.jackson.core.type.TypeReference<java.util.List<com.ensar.jobs.dto.AiSuggestion>>() {});
+                } catch (Exception parseAsObjectList) {
+                    // If fails, parse as List<String> and convert
+                    List<String> suggestions = objectMapper.readValue(aiSuggestionsJson, new com.fasterxml.jackson.core.type.TypeReference<java.util.List<String>>() {});
+                    aiSuggestionList = suggestions.stream()
+                        .map(s -> new com.ensar.jobs.dto.AiSuggestion(null, s))
+                        .collect(java.util.stream.Collectors.toList());
+                }
+                dto.setAiSuggestions(aiSuggestionList);
+            }
         } catch (Exception e) {
             dto.setAiSuggestions(null);
         }
@@ -800,7 +817,8 @@ public class JobResumeService {
             .orElseThrow(() -> new EntityNotFoundException("Job seeker not found with id: " + jobSeekerId));
 
         // Extract text from resume
-        String resumeText = extractTextFromFile(file, saveFileTemporarily(file));
+        File tempFile = saveFileTemporarily(file);
+        String resumeText = extractTextFromFile(tempFile);
         
         // Save the resume file to disk only (do not save JobResume entity)
         String originalName = file.getOriginalFilename();
@@ -976,153 +994,107 @@ public class JobResumeService {
         return results;
     }
 
+    // Download improved resume as DOCX from FastAPI
+    private void downloadDocxFromFastApi(String resumeText, String outputFilePath) {
+        if (resumeText == null || resumeText.trim().isEmpty()) {
+            log.warn("No resume text provided for DOCX download.");
+            return;
+        }
+        try {
+            // Ensure parent directory exists
+            java.nio.file.Path filePath = java.nio.file.Path.of(outputFilePath);
+            java.nio.file.Files.createDirectories(filePath.getParent());
+
+            String safeText = resumeText.replace("\"", "\\\"").replace("\n", "\\n");
+            String json = "{\"resume_text\":\"" + safeText + "\"}";
+
+            java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
+            java.net.http.HttpRequest httpRequest = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:8000/download_resume"))
+                .header("Content-Type", "application/json")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(json))
+                .build();
+
+            java.net.http.HttpResponse<byte[]> response = client.send(httpRequest, java.net.http.HttpResponse.BodyHandlers.ofByteArray());
+
+            if (response.statusCode() != 200) {
+                log.error("Failed to download DOCX from FastAPI. Status: {}", response.statusCode());
+                return;
+            }
+
+            java.nio.file.Files.write(filePath, response.body());
+            log.info("Resume DOCX downloaded to {}", filePath.toAbsolutePath());
+        } catch (Exception e) {
+            log.error("Exception while downloading DOCX from FastAPI: {}", e.getMessage(), e);
+        }
+    }
+
+    // This endpoint now proxies requests to the Python backend for resume improvement and AI-based matching.
+// All logic is handled in Python. This Java service only forwards requests and returns responses.
     public AutoImproveResponse autoImproveResume(AutoImproveRequest request) {
-        String action = request.getAction();
-        String resumeText = request.getResumeText();
-        UUID googleJobId = request.getGoogleJobId();
-        String jobSeekerId = request.getJobSeekerId();
-        String suggestion = request.getSuggestion();
-
-        // Fetch the job using googleJobId (UUID)
-        GoogleJob job = null;
-        if (googleJobId != null) {
-            job = googleJobRepository.findById(googleJobId.toString()).orElse(null);
-        }
-        if (job == null) {
-            throw new IllegalArgumentException("Invalid googleJobId");
-        }
-
-        // Step 1: If applying suggestion, update resume text using Gemini AI
-        if ("apply_suggestion".equalsIgnoreCase(action) && suggestion != null && !suggestion.isBlank()) {
-            RestTemplate restTemplate = new RestTemplate();
-            String aiImproveUrl = "http://localhost:8000/improve";
-            Map<String, Object> jobMap = new HashMap<>();
-            jobMap.put("id", job.getId());
-            jobMap.put("googleJobId", job.getId());
-            jobMap.put("title", job.getTitle());
-            jobMap.put("companyName", job.getCompanyName());
-            jobMap.put("location", job.getLocation());
-            jobMap.put("qualifications", job.getQualifications());
-            jobMap.put("description", job.getDescription());
-            jobMap.put("responsibilities", job.getResponsibilities());
-            jobMap.put("benefits", job.getBenefits());
-            jobMap.put("salary", job.getSalary());
-            jobMap.put("scheduleType", job.getScheduleType());
-            jobMap.put("applyLinks", job.getApplyLinks());
-            jobMap.put("shareLink", job.getShareLink());
-            jobMap.put("postedAt", job.getPostedAt());
-            DateTimeFormatter isoFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-            jobMap.put("createdDateTime", job.getCreatedDateTime() != null ? job.getCreatedDateTime().format(isoFormatter) : null);
-            jobMap.put("lastUpdatedDateTime", job.getLastUpdatedDateTime() != null ? job.getLastUpdatedDateTime().format(isoFormatter) : null);
-            Map<String, Object> improveRequest = new HashMap<>();
-            improveRequest.put("resume_text", resumeText);
-            improveRequest.put("job", jobMap);
-            improveRequest.put("suggestion", suggestion);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<Map<String, Object>> httpRequest = new HttpEntity<>(improveRequest, headers);
-            ResponseEntity<Map> aiResponse = restTemplate.postForEntity(aiImproveUrl, httpRequest, Map.class);
-            Object improvedResume = aiResponse.getBody() != null ? aiResponse.getBody().get("improved_resume") : null;
-            if (improvedResume != null) {
-                resumeText = improvedResume.toString();
-            }
-        }
-
-        // Step 2: Call Python /analyze endpoint to get updated match percentage
+        // Proxy to Python backend
         RestTemplate restTemplate = new RestTemplate();
-        // Build a rich jobMap for skill extraction
-        StringBuilder allSkillsText = new StringBuilder();
-        if (job.getTitle() != null) allSkillsText.append(job.getTitle()).append(" ");
-        if (job.getCompanyName() != null) allSkillsText.append(job.getCompanyName()).append(" ");
-        if (job.getQualifications() != null) allSkillsText.append(job.getQualifications()).append(" ");
-        if (job.getDescription() != null) allSkillsText.append(job.getDescription()).append(" ");
-        if (job.getResponsibilities() != null) allSkillsText.append(String.join(" ", job.getResponsibilities())).append(" ");
-        if (job.getBenefits() != null) allSkillsText.append(String.join(" ", job.getBenefits())).append(" ");
-        if (job.getScheduleType() != null) allSkillsText.append(job.getScheduleType()).append(" ");
-        if (job.getLocation() != null) allSkillsText.append(job.getLocation()).append(" ");
-        if (job.getSalary() != null) allSkillsText.append(job.getSalary()).append(" ");
-        if (job.getApplyLinks() != null) allSkillsText.append(job.getApplyLinks()).append(" ");
-        if (job.getShareLink() != null) allSkillsText.append(job.getShareLink()).append(" ");
-        // Use this as a fallback for qualifications/description if they are empty
-        String richQualifications = (job.getQualifications() != null && !job.getQualifications().isBlank()) ? job.getQualifications() : allSkillsText.toString();
-        String richDescription = (job.getDescription() != null && !job.getDescription().isBlank()) ? job.getDescription() : allSkillsText.toString();
-        List<String> richResponsibilities = (job.getResponsibilities() != null && !job.getResponsibilities().isEmpty()) ? job.getResponsibilities() : List.of(allSkillsText.toString());
+        String pythonUrl = "http://localhost:8000/improve";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<AutoImproveRequest> entity = new HttpEntity<>(request, headers);
+        ResponseEntity<AutoImproveResponse> response = restTemplate.postForEntity(
+            pythonUrl, entity, AutoImproveResponse.class
+        );
+        AutoImproveResponse aiResponse = response.getBody();
 
-        Map<String, Object> jobMap = new HashMap<>();
-        jobMap.put("id", job.getId());
-        jobMap.put("googleJobId", job.getId());
-        jobMap.put("title", job.getTitle());
-        jobMap.put("companyName", job.getCompanyName());
-        jobMap.put("location", job.getLocation());
-        jobMap.put("qualifications", richQualifications);
-        jobMap.put("description", richDescription);
-        jobMap.put("responsibilities", richResponsibilities);
-        jobMap.put("benefits", job.getBenefits());
-        jobMap.put("salary", job.getSalary());
-        jobMap.put("scheduleType", job.getScheduleType());
-        jobMap.put("applyLinks", job.getApplyLinks());
-        jobMap.put("shareLink", job.getShareLink());
-        jobMap.put("postedAt", job.getPostedAt());
-        DateTimeFormatter isoFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-        jobMap.put("createdDateTime", job.getCreatedDateTime() != null ? job.getCreatedDateTime().format(isoFormatter) : null);
-        jobMap.put("lastUpdatedDateTime", job.getLastUpdatedDateTime() != null ? job.getLastUpdatedDateTime().format(isoFormatter) : null);
-        Map<String, Object> analyzeRequest = new HashMap<>();
-        analyzeRequest.put("resume_text", resumeText);
-        analyzeRequest.put("jobs", Collections.singletonList(jobMap));
-        HttpHeaders analyzeHeaders = new HttpHeaders();
-        analyzeHeaders.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<Map<String, Object>> analyzeHttpRequest = new HttpEntity<>(analyzeRequest, analyzeHeaders);
-        ResponseEntity<Map> analyzeResponse = restTemplate.postForEntity("http://localhost:8000/analyze", analyzeHttpRequest, Map.class);
-        BigDecimal matchPercentage = BigDecimal.ZERO;
-        if (analyzeResponse.getBody() != null && analyzeResponse.getBody().get("top_matches") != null) {
-            List<Map<String, Object>> topMatches = (List<Map<String, Object>>) analyzeResponse.getBody().get("top_matches");
-            if (!topMatches.isEmpty() && topMatches.get(0).get("match_percentage") != null) {
-                matchPercentage = new BigDecimal(topMatches.get(0).get("match_percentage").toString());
+        // Update JobResume in DB
+        if (aiResponse != null && aiResponse.getMatchPercentage() != null && aiResponse.getMatchPercentage().compareTo(new java.math.BigDecimal("100")) == 0) {
+            aiResponse.setCanDownload(true);
+            // Download DOCX from FastAPI
+            try {
+                String outputFilePath = UPLOAD_DIR + "/updated_resume_" + request.getJobSeekerId() + "_" + request.getGoogleJobId() + ".docx";
+                downloadDocxFromFastApi(aiResponse.getResumeText(), outputFilePath);
+                // Optionally: store the path in DB or return as part of response
+            } catch (Exception e) {
+                // Handle error, log, etc.
+                log.error("Failed to download DOCX from FastAPI: {}", e.getMessage(), e);
             }
         }
-
-        // Step 3: Update or create JobResume for this googleJobId and jobSeekerId
-        JobResume jobResume = null;
-        List<JobResume> resumes = jobResumeRepository.findByGooglejobId(googleJobId.toString());
-        if (resumes != null && !resumes.isEmpty()) {
-            for (JobResume r : resumes) {
-                if (r.getJobSeeker() != null && r.getJobSeeker().getId().equals(jobSeekerId)) {
-                    jobResume = r;
-                    break;
+        if (request.getJobSeekerId() != null && request.getGoogleJobId() != null && aiResponse != null) {
+            List<JobResume> jobResumes = jobResumeRepository.findByJobSeeker_IdAndGooglejobId(
+                request.getJobSeekerId(), request.getGoogleJobId().toString()
+            );
+            if (jobResumes != null && !jobResumes.isEmpty()) {
+                // Update the latest resume (by uploadedAt)
+                jobResumes.sort((a, b) -> b.getUploadedAt().compareTo(a.getUploadedAt()));
+                JobResume jobResume = jobResumes.get(0);
+                jobResume.setResumeText(aiResponse.getResumeText());
+                jobResume.setMatchPercentage(aiResponse.getMatchPercentage());
+                jobResume.setUploadedAt(java.time.LocalDateTime.now()); // Ensure improved resume is latest
+                try {
+                    // Convert suggestions to JSON if needed
+                    if (aiResponse.getSuggestions() != null) {
+                        jobResume.setAiSuggestions(objectMapper.writeValueAsString(aiResponse.getSuggestions()));
+                    }
+                } catch (Exception e) {
+                    jobResume.setAiSuggestions(null);
                 }
+                jobResumeRepository.save(jobResume);
             }
         }
-        if (jobResume == null) {
-            JobSeeker jobSeeker = jobSeekerRepository.findById(jobSeekerId)
-                .orElseThrow(() -> new EntityNotFoundException("Job seeker not found with id: " + jobSeekerId));
-            jobResume = JobResume.builder()
-                .id(UUID.randomUUID().toString())
-                .googlejobId(googleJobId.toString())
-                .jobSeeker(jobSeeker)
-                .uploadedAt(LocalDateTime.now())
-                .build();
-        }
-        jobResume.setResumeText(resumeText);
-        jobResume.setMatchPercentage(matchPercentage);
-        jobResumeRepository.save(jobResume);
-
-        boolean canDownload = matchPercentage.compareTo(new java.math.BigDecimal("100")) >= 0;
-
-        return AutoImproveResponse.builder()
-                .resumeText(resumeText)
-                .matchPercentage(matchPercentage)
-                .suggestions(new ArrayList<>())
-                .canDownload(canDownload)
-                .build();
+        return aiResponse;
     }
 
     /**
-     * Save a MultipartFile to a temporary file and return it
+     * Saves a MultipartFile to a temporary file and returns the File reference.
      */
-    private java.io.File saveFileTemporarily(MultipartFile file) throws IOException {
-        Path tempDir = Files.createTempDirectory("resume_upload_");
-        Path tempFile = tempDir.resolve(file.getOriginalFilename());
-        Files.copy(file.getInputStream(), tempFile);
-        return tempFile.toFile();
+    public File saveFileTemporarily(MultipartFile file) throws IOException {
+        String originalFilename = file.getOriginalFilename();
+        String suffix = (originalFilename != null && originalFilename.contains(".")) ?
+            originalFilename.substring(originalFilename.lastIndexOf('.')) : null;
+        Path tempPath = java.nio.file.Files.createTempFile("resume-", suffix);
+        try (java.io.InputStream in = file.getInputStream()) {
+            java.nio.file.Files.copy(in, tempPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
+        return tempPath.toFile();
     }
+
 }
+
+    

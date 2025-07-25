@@ -113,15 +113,21 @@ public class JobSeekerCertificationService {
     }
 
     @Transactional(readOnly = true)
-    public JobSeekerCertificationDTO getJobSeekerCertificationById(String id) {
-        JobSeekerCertification certification = certificationRepository.findById(id)
-            .orElseThrow(() -> new EntityNotFoundException("Job seeker certification not found with id: " + id));
-        return mapToDTO(certification);
+    public List<JobSeekerCertificationDTO> getJobSeekerCertificationById(String jobSeekerId) {
+        return certificationRepository.findByJobSeekerId(jobSeekerId).stream()
+            .map(this::mapToDTO)
+            .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<JobSeekerCertificationDTO> getAllJobSeekerCertifications() {
         return certificationRepository.findAll().stream()
+            .map(this::mapToDTO)
+            .collect(Collectors.toList());
+    }
+
+    public List<JobSeekerCertificationDTO> getAllByJobSeekerCertificationId(String jobSeekerId) {
+        return certificationRepository.findByJobSeekerId(jobSeekerId).stream()
             .map(this::mapToDTO)
             .collect(Collectors.toList());
     }

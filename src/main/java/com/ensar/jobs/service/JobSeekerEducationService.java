@@ -66,6 +66,13 @@ public class JobSeekerEducationService {
             .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<JobSeekerEducationDTO> getAllByJobSeekerEducationId(String jobSeekerId) {
+        return educationRepository.findByJobSeekerId(jobSeekerId).stream()
+            .map(this::mapToDTO)
+            .collect(Collectors.toList());
+    }
+
     public void deleteJobSeekerEducation(String id) {
         if (!educationRepository.existsById(id)) {
             throw new EntityNotFoundException("Job seeker education not found with id: " + id);

@@ -34,6 +34,12 @@ public class JobSeekerEducationController {
         return ResponseEntity.ok(educationService.getJobSeekerEducationById(id));
     }
 
+    @GetMapping("/by-jobseeker")
+    @Operation(summary = "Get all job seeker educations by jobSeekerId")
+    public ResponseEntity<List<JobSeekerEducationDTO>> getAllByJobSeekerEducationId(@RequestParam String jobSeekerId) {
+        return ResponseEntity.ok(educationService.getAllByJobSeekerEducationId(jobSeekerId));
+    }
+
     @GetMapping
     @Operation(summary = "Get all job seeker educations")
     public ResponseEntity<List<JobSeekerEducationDTO>> getAll() {

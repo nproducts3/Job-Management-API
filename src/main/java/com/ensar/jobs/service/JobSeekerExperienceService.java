@@ -54,15 +54,22 @@ public class JobSeekerExperienceService {
     }
 
     @Transactional(readOnly = true)
-    public JobSeekerExperienceDTO getJobSeekerExperienceById(String id) {
-        JobSeekerExperience experience = experienceRepository.findById(id)
-            .orElseThrow(() -> new EntityNotFoundException("Job seeker experience not found with id: " + id));
-        return mapToDTO(experience);
+    public List<JobSeekerExperienceDTO> getJobSeekerExperienceById(String jobSeekerId) {
+        return experienceRepository.findByJobSeekerId(jobSeekerId).stream()
+            .map(this::mapToDTO)
+            .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<JobSeekerExperienceDTO> getAllJobSeekerExperiences() {
         return experienceRepository.findAll().stream()
+            .map(this::mapToDTO)
+            .collect(Collectors.toList());
+    }
+
+    public List<JobSeekerExperienceDTO> getAllByJobSeekerExperienceId(String jobSeekerId) {
+        // You need to add findByJobSeekerId to your repository
+        return experienceRepository.findByJobSeekerId(jobSeekerId).stream()
             .map(this::mapToDTO)
             .collect(Collectors.toList());
     }

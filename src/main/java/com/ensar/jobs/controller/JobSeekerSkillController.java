@@ -34,6 +34,12 @@ public class JobSeekerSkillController {
         return ResponseEntity.ok(skillService.getJobSeekerSkillById(id));
     }
 
+    @GetMapping("/by-jobseeker")
+    @Operation(summary = "Get all job seeker skills by jobSeekerId")
+    public ResponseEntity<List<JobSeekerSkillDTO>> getAllByJobSeekerSkillId(@RequestParam String jobSeekerId) {
+        return ResponseEntity.ok(skillService.getAllByJobSeekerSkillId(jobSeekerId));
+    }
+
     @GetMapping
     @Operation(summary = "Get all job seeker skills")
     public ResponseEntity<List<JobSeekerSkillDTO>> getAll() {

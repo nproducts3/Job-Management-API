@@ -66,6 +66,13 @@ public class JobSeekerSkillService {
             .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<JobSeekerSkillDTO> getAllByJobSeekerSkillId(String jobSeekerId) {
+        return skillRepository.findByJobSeekerId(jobSeekerId).stream()
+            .map(this::mapToDTO)
+            .collect(Collectors.toList());
+    }
+
     public void deleteJobSeekerSkill(String id) {
         if (!skillRepository.existsById(id)) {
             throw new EntityNotFoundException("Job seeker skill not found with id: " + id);

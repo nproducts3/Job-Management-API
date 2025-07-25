@@ -90,24 +90,30 @@ public class JobResumeController {
 
     @GetMapping("/skills")
     @Operation(summary = "Extract skills from resume text", 
-               description = "Extract and categorize skills from resume text")
+               description = "Extract and categorize skills from resume text using AI backend")
     public ResponseEntity<Map<String, Object>> extractSkills(
             @Parameter(description = "Resume text content") 
             @RequestParam("resumeText") String resumeText) {
-        
-        // Extract skills using existing service methods
-        Set<String> skills = jobResumeService.extractSkillsFromText(resumeText);
-        Map<String, Set<String>> skillsByCategory = jobResumeService.extractSkillsByCategory(resumeText);
-        
-        // Convert to response format
-        Map<String, Object> response = new HashMap<>();
-        response.put("extractedSkills", new ArrayList<>(skills));
-        response.put("skillsByCategory", skillsByCategory.entrySet().stream()
-            .collect(Collectors.toMap(
-                Map.Entry::getKey,
-                entry -> new ArrayList<>(entry.getValue())
-            )));
-        
+        // Send resumeText to Python backend /analyze endpoint
+        org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+        String aiUrl = "http://localhost:8000/analyze";
+        java.util.Map<String, Object> request = new java.util.HashMap<>();
+        request.put("resume_text", resumeText);
+        request.put("jobs", new java.util.ArrayList<>()); // No jobs needed for skill extraction only
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        org.springframework.http.HttpEntity<java.util.Map<String, Object>> entity = new org.springframework.http.HttpEntity<>(request, headers);
+        org.springframework.http.ResponseEntity<java.util.Map> aiResponse = restTemplate.postForEntity(aiUrl, entity, java.util.Map.class);
+        java.util.Map<String, Object> aiBody = aiResponse.getBody();
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        if (aiBody != null) {
+            if (aiBody.get("skills") != null) {
+                response.put("extractedSkills", aiBody.get("skills"));
+            }
+            if (aiBody.get("skills_by_category") != null) {
+                response.put("skillsByCategory", aiBody.get("skills_by_category"));
+            }
+        }
         return ResponseEntity.ok(response);
     }
 

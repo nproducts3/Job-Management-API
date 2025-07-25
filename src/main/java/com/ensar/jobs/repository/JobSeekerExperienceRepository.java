@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface JobSeekerExperienceRepository extends JpaRepository<JobSeekerExperience, String> {
+    java.util.List<JobSeekerExperience> findByJobSeekerId(String jobSeekerId);
 } 

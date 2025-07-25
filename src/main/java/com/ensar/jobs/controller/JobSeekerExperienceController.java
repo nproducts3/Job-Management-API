@@ -30,8 +30,14 @@ public class JobSeekerExperienceController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get job seeker experience by ID")
-    public ResponseEntity<JobSeekerExperienceDTO> getById(@PathVariable String id) {
+    public ResponseEntity<List<JobSeekerExperienceDTO>> getById(@PathVariable String id) {
         return ResponseEntity.ok(experienceService.getJobSeekerExperienceById(id));
+    }
+
+    @GetMapping("/by-jobseeker")
+    @Operation(summary = "Get all job seeker experiences by jobSeekerId")
+    public ResponseEntity<List<JobSeekerExperienceDTO>> getAllByJobSeekerExperienceId(@RequestParam String jobSeekerId) {
+        return ResponseEntity.ok(experienceService.getAllByJobSeekerExperienceId(jobSeekerId));
     }
 
     @GetMapping

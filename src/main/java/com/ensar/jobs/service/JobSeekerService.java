@@ -116,6 +116,12 @@ public class JobSeekerService {
         jobSeekerRepository.deleteById(id);
     }
 
+    // Get jobSeekerId by userId
+    public String getJobSeekerIdByUserId(String userId) {
+        JobSeeker js = jobSeekerRepository.findByUser_Id(userId);
+        if (js == null) throw new jakarta.persistence.EntityNotFoundException("JobSeeker not found for userId: " + userId);
+        return js.getId();
+    }
     // Manual mapping methods
     private JobSeeker mapToEntity(JobSeekerDTO dto) {
         JobSeeker entity = new JobSeeker();

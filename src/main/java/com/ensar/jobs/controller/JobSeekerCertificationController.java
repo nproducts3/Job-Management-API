@@ -100,7 +100,7 @@ public class JobSeekerCertificationController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get job seeker certification by ID")
-    public ResponseEntity<JobSeekerCertificationDTO> getById(@PathVariable String id) {
+    public ResponseEntity<List<JobSeekerCertificationDTO>> getById(@PathVariable String id) {
         return ResponseEntity.ok(certificationService.getJobSeekerCertificationById(id));
     }
 
@@ -111,9 +111,9 @@ public class JobSeekerCertificationController {
     }
 
     @GetMapping("/job-seeker/{jobSeekerId}")
-    @Operation(summary = "Get certifications by job seeker ID")
-    public ResponseEntity<List<JobSeekerCertificationDTO>> getByJobSeekerId(@PathVariable String jobSeekerId) {
-        return ResponseEntity.ok(certificationService.getCertificationsByJobSeekerId(jobSeekerId));
+    @Operation(summary = "Get all certifications for a job seeker by jobSeekerId")
+    public ResponseEntity<List<JobSeekerCertificationDTO>> getAllByJobSeekerCertificationId(@PathVariable String jobSeekerId) {
+        return ResponseEntity.ok(certificationService.getAllByJobSeekerCertificationId(jobSeekerId));
     }
 
     @DeleteMapping("/{id}")
