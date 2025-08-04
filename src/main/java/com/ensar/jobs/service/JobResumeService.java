@@ -1,3 +1,5 @@
+
+
 package com.ensar.jobs.service;
 
 import com.ensar.jobs.dto.JobResumeDTO;
@@ -21,6 +23,10 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -45,11 +51,64 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ensar.jobs.controller.JobResumeController.AutoImproveRequest;
 import com.ensar.jobs.controller.JobResumeController.AutoImproveResponse;
+import org.springframework.web.client.RestTemplate;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class JobResumeService {
+
+    /**
+     * Fetch paginated analysis results for a job seeker (no file required)
+     */
+    public ResumeAnalysisDTO getPaginatedAnalysisForJobSeeker(String jobSeekerId, int page, int size) {
+        // Validate job seeker
+        JobSeeker jobSeeker = jobSeekerRepository.findById(jobSeekerId)
+            .orElseThrow(() -> new EntityNotFoundException("Job seeker not found with id: " + jobSeekerId));
+
+        // Fetch paginated JobResume records for the latest analyzed jobs
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "uploadedAt"));
+        Page<JobResume> jobResumePage = jobResumeRepository.findByJobSeeker_Id(jobSeekerId, pageable);
+        List<JobResume> jobResumes = jobResumePage.getContent();
+
+        // Map JobResume to JobMatchResultDTO
+        List<JobMatchResultDTO> jobMatches = jobResumes.stream().map(jr -> {
+            JobMatchResultDTO dto = new JobMatchResultDTO();
+            dto.setGoogleJobId(jr.getGooglejobId() != null ? UUID.fromString(jr.getGooglejobId()) : null);
+            // dto.setJobTitle(jr.getJobTitle());
+            // dto.setCompanyName(jr.getCompanyName());
+            dto.setMatchPercentage(jr.getMatchPercentage());
+            dto.setAiSuggestions(jr.getAiSuggestions());
+            // Map other fields as needed
+            return dto;
+        }).collect(Collectors.toList());
+
+        // Calculate average match percentage for paginated jobs
+        BigDecimal averageMatchPercentage = jobMatches.isEmpty() ? BigDecimal.ZERO :
+            jobMatches.stream()
+                .map(JobMatchResultDTO::getMatchPercentage)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(BigDecimal.valueOf(jobMatches.size()), 2, RoundingMode.HALF_UP);
+
+        int totalPages = jobResumePage.getTotalPages();
+        boolean hasNextPage = jobResumePage.hasNext();
+        boolean hasPreviousPage = jobResumePage.hasPrevious();
+
+        return ResumeAnalysisDTO.builder()
+            .jobSeekerId(jobSeekerId)
+            .jobSeekerName(jobSeeker.getFirstName() + " " + jobSeeker.getLastName())
+            .jobMatches(jobMatches)
+            .averageMatchPercentage(averageMatchPercentage)
+            .totalJobsAnalyzed((int) jobResumePage.getTotalElements())
+            .currentPage(page)
+            .totalPages(totalPages)
+            .pageSize(size)
+            .hasNextPage(hasNextPage)
+            .hasPreviousPage(hasPreviousPage)
+            .build();
+    }
+
     // Ensure proper JSON serialization/deserialization for aiSuggestions
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
     /**
@@ -777,6 +836,7 @@ public class JobResumeService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
         ResponseEntity<Map> response = restTemplate.postForEntity(AI_ANALYSIS_URL, request, Map.class);
+        log.info("Python AI response: {}", response.getBody());
         List<Map<String, Object>> topMatches = (List<Map<String, Object>>) response.getBody().get("top_matches");
         List<JobMatchResultDTO> result = new ArrayList<>();
         for (Map<String, Object> match : topMatches) {
@@ -802,7 +862,16 @@ public class JobResumeService {
             dto.setSalary((String) match.get("salary"));
             dto.setScheduleType((String) match.get("scheduleType"));
             dto.setCategoryScores(objectMapper.convertValue(match.get("categoryScores"), new TypeReference<Map<String, BigDecimal>>(){}));
-            dto.setAiSuggestions((String) match.get("ai_suggestions"));
+            Object aiSuggestionsObj = match.get("ai_suggestions");
+if (aiSuggestionsObj != null) {
+    try {
+        dto.setAiSuggestions(objectMapper.writeValueAsString(aiSuggestionsObj));
+    } catch (Exception e) {
+        dto.setAiSuggestions(null);
+    }
+} else {
+    dto.setAiSuggestions(null);
+}
             result.add(dto);
         }
         return result;
@@ -861,7 +930,8 @@ public class JobResumeService {
 
         // Save a JobResume for each GoogleJob with its match percentage
         for (JobMatchResultDTO match : aiMatches) {
-            String aiSuggestionsJson = match.getAiSuggestions();
+            // String aiSuggestionsJson = match.getAiSuggestions();
+            String aiSuggestionsJson = String.join(", ", match.getAiSuggestions());
             JobResume jobResume = JobResume.builder()
                 .id(UUID.randomUUID().toString())
                 .googlejobId(match.getGoogleJobId() != null ? match.getGoogleJobId().toString() : null)
@@ -898,6 +968,9 @@ public class JobResumeService {
             .build();
     }
 
+
+    
+
     public List<JobMatchResultDTO> getTopMatchingJobs(String resumeText, int limit, JobSeeker jobSeeker) {
         // Extract skills from resume text
         // TODO: Integrate AI analysis for job matching
@@ -930,6 +1003,270 @@ public class JobResumeService {
             .build();
         return List.of(dto);
     }
+
+
+//     public ResumeAnalysisDTO paginatedResumeAnalysis(
+//     MultipartFile file,
+//     String jobSeekerId,
+//     int page,
+//     int size
+// ) throws IOException {
+//     // Validate job seeker
+//     JobSeeker jobSeeker = jobSeekerRepository.findById(jobSeekerId)
+//         .orElseThrow(() -> new EntityNotFoundException("Job seeker not found with id: " + jobSeekerId));
+
+//     // Extract text from resume
+//     File tempFile = saveFileTemporarily(file);
+//     String resumeText = extractTextFromFile(tempFile);
+
+//     // Save the resume file to disk only (do not save JobResume entity)
+//     String originalName = file.getOriginalFilename();
+//     String safeFirstName = jobSeeker.getFirstName().replaceAll("[^a-zA-Z0-9]", "_");
+//     String safeLastName = jobSeeker.getLastName().replaceAll("[^a-zA-Z0-9]", "_");
+//     String safeTitle = (jobSeeker.getPreferredJobTypes() != null && !jobSeeker.getPreferredJobTypes().isEmpty()) ? jobSeeker.getPreferredJobTypes().replaceAll("[^a-zA-Z0-9]", "_") : null;
+//     String filename = safeFirstName + "_" + safeLastName;
+//     if (safeTitle != null) {
+//         filename += "_" + safeTitle;
+//     }
+//     filename += "_" + originalName;
+//     Path uploadPath = Paths.get(UPLOAD_DIR);
+//     Files.createDirectories(uploadPath);
+//     Path filePath = uploadPath.resolve(filename);
+//     // Check and delete existing file if present
+//     if (Files.exists(filePath)) {
+//         Files.delete(filePath);
+//     }
+//     Files.copy(file.getInputStream(), filePath);
+//     String generatedResumeId = UUID.randomUUID().toString();
+//     LocalDateTime uploadedAt = LocalDateTime.now();
+
+//     // Extract skills from resume
+//     Set<String> resumeSkills = extractSkillsFromText(resumeText);
+//     // Extract skills by category for the DTO
+//     Map<String, Set<String>> skillsByCategory = extractSkillsByCategory(resumeText);
+//     List<String> extractedSkillsList = new ArrayList<>(resumeSkills);
+//     Map<String, List<String>> skillsByCategoryList = skillsByCategory.entrySet().stream()
+//         .collect(Collectors.toMap(
+//             Map.Entry::getKey,
+//             entry -> new ArrayList<>(entry.getValue())
+//         ));
+
+//     // Get all jobs and paginate
+//     List<GoogleJob> allJobs = googleJobRepository.findAll();
+//     int fromIndex = page * size;
+//     int toIndex                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                = Math.min(fromIndex + size, allJobs.size());
+//     List<GoogleJob> paginatedJobs = allJobs.subList(fromIndex, toIndex);
+//             List<JobMatchResultDTO> aiMatches = callAiResumeAnalysis(resumeText, allJobs);
+
+//     // Call AI service for smart analysis (only for paginated jobs)
+// // Call AI service for smart analysis (only for paginated jobs)
+// RestTemplate restTemplate = new RestTemplate();
+// String url = "http://localhost:8000/analyze";
+// HttpHeaders headers = new HttpHeaders();
+// headers.setContentType(MediaType.APPLICATION_JSON);
+// Map<String, Object> payload = new HashMap<>();
+// payload.put("jobs", paginatedJobs.stream().map(job -> {
+//     Map<String, Object> jobMap = new HashMap<>();
+//     jobMap.put("id", job.getId());
+//     jobMap.put("jobId", job.getJobId());
+//     jobMap.put("title", job.getTitle());
+//     jobMap.put("companyName", job.getCompanyName());
+//     jobMap.put("description", job.getDescription());
+//     jobMap.put("qualifications", job.getQualifications());
+//     jobMap.put("responsibilities", job.getResponsibilities());
+//     // jobMap.put("skills", job.getSkills()); // Removed: GoogleJob has no getSkills()
+//     return jobMap;
+// }).collect(Collectors.toList()));
+// payload.put("resume_text", resumeText);
+// payload.put("job_seeker_id", jobSeekerId);
+// HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+// ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+// String aiResponseBody = response.getBody();
+// List<JobMatchResultDTO> jobMatches = new ArrayList<>();
+// try {
+//     com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(aiResponseBody);
+//     com.fasterxml.jackson.databind.JsonNode matchesNode = root.get("top_matches");
+//     if (matchesNode != null && matchesNode.isArray()) {
+//         jobMatches = objectMapper.readValue(matchesNode.toString(), new com.fasterxml.jackson.core.type.TypeReference<List<JobMatchResultDTO>>(){});
+//     }
+// } catch (Exception e) {
+//     log.error("Failed to parse AI job matches response", e);
+// }
+
+// // Calculate statistics
+// BigDecimal averageMatchPercentage = BigDecimal.ZERO;
+// int totalJobsAnalyzed = jobMatches.size();
+// int highMatchJobs = 0, mediumMatchJobs = 0, lowMatchJobs = 0;
+// if (totalJobsAnalyzed > 0) {
+//     BigDecimal sum = BigDecimal.ZERO;
+//     for (JobMatchResultDTO match : jobMatches) {
+//         if (match.getMatchPercentage() != null) {
+//             sum = sum.add(match.getMatchPercentage());
+//             if (match.getMatchPercentage().compareTo(new BigDecimal("70")) >= 0) highMatchJobs++;
+//             else if (match.getMatchPercentage().compareTo(new BigDecimal("40")) >= 0) mediumMatchJobs++;
+//             else lowMatchJobs++;
+//         }
+//     }
+//     averageMatchPercentage = sum.divide(BigDecimal.valueOf(totalJobsAnalyzed), 2, RoundingMode.HALF_UP);
+// }
+
+// // Pagination info
+// int totalPages = (int) Math.ceil((double) allJobs.size() / size);
+// boolean hasNextPage = (page + 1) < totalPages;
+// boolean hasPreviousPage = page > 0;
+
+// return ResumeAnalysisDTO.builder()
+//     .resumeId(generatedResumeId)
+//     .resumeFile(filename)
+//     .resumeText(resumeText)
+//     .uploadedAt(uploadedAt)
+//     .jobSeekerId(jobSeekerId)
+//     .jobSeekerName(jobSeeker.getFirstName() + " " + jobSeeker.getLastName())
+//     .extractedSkills(extractedSkillsList)
+//     .skillsByCategory(skillsByCategoryList)
+//     .jobMatches(jobMatches)
+//     .averageMatchPercentage(averageMatchPercentage)
+//     .totalJobsAnalyzed(totalJobsAnalyzed)
+//     .highMatchJobs(highMatchJobs)
+//     .mediumMatchJobs(mediumMatchJobs)
+//     .lowMatchJobs(lowMatchJobs)
+//     .currentPage(page)
+//     .totalPages(totalPages)
+//     .pageSize(size)
+//     .hasNextPage(hasNextPage)
+//     .hasPreviousPage(hasPreviousPage)
+//     .build();
+// }
+
+
+public ResumeAnalysisDTO paginatedResumeAnalysis(MultipartFile file, String jobSeekerId, int page, int size) throws IOException {
+    // Validate job seeker
+    JobSeeker jobSeeker = jobSeekerRepository.findById(jobSeekerId)
+        .orElseThrow(() -> new EntityNotFoundException("Job seeker not found with id: " + jobSeekerId));
+
+    // Extract text from resume
+    File tempFile = saveFileTemporarily(file);
+    String resumeText = extractTextFromFile(tempFile);
+    
+    // Save the resume file to disk
+    String originalName = file.getOriginalFilename();
+    String safeFirstName = jobSeeker.getFirstName().replaceAll("[^a-zA-Z0-9]", "_");
+    String safeLastName = jobSeeker.getLastName().replaceAll("[^a-zA-Z0-9]", "_");
+    String safeTitle = (jobSeeker.getPreferredJobTypes() != null && !jobSeeker.getPreferredJobTypes().isEmpty()) ? jobSeeker.getPreferredJobTypes().replaceAll("[^a-zA-Z0-9]", "_") : null;
+    String filename = safeFirstName + "_" + safeLastName;
+    if (safeTitle != null) {
+        filename += "_" + safeTitle;
+    }
+    filename += "_" + originalName;
+    Path uploadPath = Paths.get(UPLOAD_DIR);
+    Files.createDirectories(uploadPath);
+    Path filePath = uploadPath.resolve(filename);
+    // Check and delete existing file if present
+    if (Files.exists(filePath)) {
+        Files.delete(filePath);
+    }
+    Files.copy(file.getInputStream(), filePath);
+    String generatedResumeId = UUID.randomUUID().toString();
+    LocalDateTime uploadedAt = LocalDateTime.now();
+    
+    // Extract skills from resume
+    Set<String> resumeSkills = extractSkillsFromText(resumeText);
+    Map<String, Set<String>> skillsByCategory = extractSkillsByCategory(resumeText);
+    List<String> extractedSkillsList = new ArrayList<>(resumeSkills);
+    Map<String, List<String>> skillsByCategoryList = skillsByCategory.entrySet().stream()
+        .collect(Collectors.toMap(
+            Map.Entry::getKey,
+            entry -> new ArrayList<>(entry.getValue())
+        ));
+
+    // Pagination for the jobs
+    Pageable pageable = PageRequest.of(page, size);  // Create pageable object with page number and size
+    Page<GoogleJob> jobPage = googleJobRepository.findAll(pageable);  // Fetch paginated jobs from the repository
+    List<GoogleJob> jobsInPage = jobPage.getContent();  // Get the content (list of jobs) for the current page
+
+    // Call AI service for analysis based on paginated jobs
+    List<JobMatchResultDTO> aiMatches = callAiResumeAnalysis(resumeText, jobsInPage);
+
+    // Save a JobResume for each GoogleJob with its match percentage
+    for (JobMatchResultDTO match : aiMatches) {
+        String aiSuggestionsJson = match.getAiSuggestions();
+        JobResume jobResume = JobResume.builder()
+            .id(UUID.randomUUID().toString())
+            .googlejobId(match.getGoogleJobId() != null ? match.getGoogleJobId().toString() : null)
+            .resumeFile(filename)
+            .resumeText(resumeText)
+            .uploadedAt(uploadedAt)
+            .jobSeeker(jobSeeker)
+            .matchPercentage(match.getMatchPercentage())
+            .aiSuggestions(aiSuggestionsJson)
+            .build();
+        jobResumeRepository.save(jobResume);
+    }
+
+    // Calculate average match percentage
+    BigDecimal averageMatchPercentage = aiMatches.isEmpty() ? BigDecimal.ZERO :
+        aiMatches.stream().map(JobMatchResultDTO::getMatchPercentage).reduce(BigDecimal.ZERO, BigDecimal::add)
+            .divide(BigDecimal.valueOf(aiMatches.size()), 2, RoundingMode.HALF_UP);
+
+    // Pagination metadata
+    long totalJobs = jobPage.getTotalElements();  // Total number of jobs available
+    int totalPages = jobPage.getTotalPages();  // Total number of pages
+    boolean hasNextPage = jobPage.hasNext();  // Check if there's a next page
+    boolean hasPreviousPage = jobPage.hasPrevious();  // Check if there's a previous page
+
+    return ResumeAnalysisDTO.builder()
+        .resumeId(generatedResumeId)
+        .resumeFile(filename)
+        .resumeText(resumeText)
+        .uploadedAt(uploadedAt)
+        .jobSeekerId(jobSeekerId)
+        .jobSeekerName(jobSeeker.getFirstName() + " " + jobSeeker.getLastName())
+        .extractedSkills(extractedSkillsList)
+        .skillsByCategory(skillsByCategoryList)
+        .jobMatches(aiMatches)
+        .averageMatchPercentage(averageMatchPercentage)
+        .totalJobsAnalyzed(aiMatches.size())
+        .highMatchJobs(0)
+        .mediumMatchJobs(0)
+        .lowMatchJobs(0)
+        .currentPage(page)  // Current page number
+        .totalPages(totalPages)  // Total number of pages
+        .pageSize(size)  // Size of each page
+        .hasNextPage(hasNextPage)  // Indicates if there's a next page
+        .hasPreviousPage(hasPreviousPage)  // Indicates if there's a previous page
+        .build();
+}
+
+
+    // public ResumeAnalysisDTO getResumeAnalysisByJobSeeker(String jobSeekerId, int page, int size) {
+    // Fetch paginated jobs for the job seeker
+//     Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "uploadedAt"));
+//     Page<JobResume> jobResumePage = jobResumeRepository.findByJobSeeker_Id(jobSeekerId, pageable);
+//     List<JobResume> jobResumes = jobResumePage.getContent();
+
+//     // Prepare request payload for Python backend
+//     List<Map<String, Object>> jobsForAnalysis = new ArrayList<>();
+//     for (JobResume jr : jobResumes) {
+//         Map<String, Object> jobMap = new HashMap<>();
+//         jobMap.put("googleJobId", jr.getGooglejobId());
+//         jobMap.put("resumeText", jr.getResumeText());
+//         jobMap.put("jobSeekerId", jobSeekerId);
+//         jobsForAnalysis.add(jobMap);
+//     }
+//     Map<String, Object> payload = new HashMap<>();
+//     payload.put("jobs", jobsForAnalysis);
+//     payload.put("jobSeekerId", jobSeekerId);
+
+//     // Call Python FastAPI backend
+//     String url = "http://localhost:8000/analyze";
+//     HttpHeaders headers = new HttpHeaders();
+//     headers.setContentType(MediaType.APPLICATION_JSON);
+//     RestTemplate restTemplate = new RestTemplate();
+//     HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+//     ResponseEntity<JobMatchResultDTO[]> response = restTemplate.postForEntity(url, entity, JobMatchResultDTO[].class);
+//     JobMatchResultDTO[] result = response.getBody();
+//     return result != null ? Arrays.asList(result) : Collections.emptyList();
+// }
 
     /**
      * Get match percentages for all resumes of a job seeker (use stored matchPercentage)
@@ -1034,7 +1371,7 @@ public class JobResumeService {
     public AutoImproveResponse autoImproveResume(AutoImproveRequest request) {
         // Proxy to Python backend
         RestTemplate restTemplate = new RestTemplate();
-        String pythonUrl = "http://localhost:8000/improve";
+        String pythonUrl = "http://localhost:8000prove";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<AutoImproveRequest> entity = new HttpEntity<>(request, headers);

@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
 import java.io.IOException;
@@ -34,15 +35,37 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-
-
 @RestController
 @RequestMapping("/api/resume-analysis")
 @RequiredArgsConstructor
 @Tag(name = "Resume Analysis", description = "Resume analysis and job matching APIs")
 public class JobResumeController {
+
+    @GetMapping("/paginated-analyze")
+    @Operation(summary = "Get paginated resume analysis for a job seeker",
+               description = "Returns paginated resume analysis for the given job seeker ID.")
+    public ResponseEntity<ResumeAnalysisDTO> getPaginatedResumeAnalysis(
+            @RequestParam("jobSeekerId") String jobSeekerId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) throws IOException {
+        ResumeAnalysisDTO analysis = jobResumeService.getPaginatedAnalysisForJobSeeker(jobSeekerId, page, size);
+        return ResponseEntity.ok(analysis);
+    }
+
+   @PostMapping(value = "/paginated-analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+@Operation(summary = "Analyze resume against jobs with pagination", 
+           description = "Upload a resume and get analysis against jobs for the jobseeker, paginated.")
+public ResponseEntity<ResumeAnalysisDTO> paginatedAnalyzeResume(
+    @Parameter(description = "Resume file (PDF or DOCX)") 
+        @RequestParam("file") MultipartFile file,
+        @RequestParam("jobSeekerId") String jobSeekerId,
+        @RequestParam(value = "page", defaultValue = "0") int page,
+        @RequestParam(value = "size", defaultValue = "10") int size) throws Exception {
+   
+            ResumeAnalysisDTO analysis = jobResumeService.paginatedResumeAnalysis(file, jobSeekerId, page, size);
+            return ResponseEntity.ok(analysis);
+}
+
 
     private final JobResumeService jobResumeService;
     private final JobSeekerService jobSeekerService;

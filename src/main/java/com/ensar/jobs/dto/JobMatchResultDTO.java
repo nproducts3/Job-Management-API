@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -32,4 +33,8 @@ public class JobMatchResultDTO {
     private String aiSuggestions;
     private String jobSeekerId;
     private String jobSeekerName;
+    private String resumeId;
+    private LocalDateTime uploadedAt;
+    private String resumeFile;
+    private String resumeText;
 } 
