@@ -1371,7 +1371,7 @@ public ResumeAnalysisDTO paginatedResumeAnalysis(MultipartFile file, String jobS
     public AutoImproveResponse autoImproveResume(AutoImproveRequest request) {
         // Proxy to Python backend
         RestTemplate restTemplate = new RestTemplate();
-        String pythonUrl = "http://localhost:8000prove";
+        String pythonUrl = "http://localhost:8000/improve";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<AutoImproveRequest> entity = new HttpEntity<>(request, headers);
